@@ -152,11 +152,9 @@ function ajax(request) {
 
         if (response.status < 400) {
 
-            if (request.dataType === 'json') {
-                return response.json();
-            } else if (request.dataType === 'text') {
+            if (request.dataType === 'text') {
                 return response.text();
-            } else if (request.headers.accept === 'application/json') {
+            } else if (request.dataType === 'json' || request.headers.accept === 'application/json') {
                 return response.json();
             } else {
                 return response;
