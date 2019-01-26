@@ -126,11 +126,11 @@ function onNetworkChanged(instance, resetAddress) {
     refreshWakeOnLanInfoIfNeeded(instance);
 }
 
-function saveUserInCache(user) {
+function saveUserInCache(appStorage, user) {
     appStorage.setItem('user-' + user.Id + '-' + user.ServerId, JSON.stringify(user));
 }
 
-function removeCachedUser(userId, serverId) {
+function removeCachedUser(appStorage, userId, serverId) {
     appStorage.removeItem('user-' + userId + '-' + serverId);
 }
 
@@ -542,7 +542,7 @@ class ApiClient {
             }).then(result => {
 
                 instance._userViewsPromise = null;
-                saveUserInCache(result.User);
+                saveUserInCache(instance.appStorage, result.User);
 
                 const afterOnAuthenticated = () => {
                     redetectBitrate(instance);
@@ -676,6 +676,17 @@ class ApiClient {
             headers: {
                 accept: 'application/json'
             }
+
+        }, includeAuthorization);
+    }
+
+    getText(url, includeAuthorization) {
+
+        return this.fetch({
+
+            url,
+            type: 'GET',
+            dataType: 'text'
 
         }, includeAuthorization);
     }
@@ -2230,7 +2241,7 @@ class ApiClient {
      * Gets a user by id
      * @param {String} id
      */
-    getUser(id) {
+    getUser(id, enableCache) {
 
         if (!id) {
             throw new Error("Must supply a userId");
@@ -2243,7 +2254,7 @@ class ApiClient {
 
         const serverPromise = this.getJSON(url).then(user => {
 
-            saveUserInCache(user);
+            saveUserInCache(instance.appStorage, user);
             return user;
 
         }, response => {
@@ -2563,6 +2574,7 @@ class ApiClient {
 
         const url = this.getUrl(`Users/${userId}/Password`);
         const serverId = this.serverId();
+        const instance = this;
 
         return this.ajax({
             type: "POST",
@@ -2573,7 +2585,7 @@ class ApiClient {
             }),
             contentType: "application/json"
         }).then(() => {
-            removeCachedUser(userId, serverId);
+            removeCachedUser(instance.appStorage, userId, serverId);
             return Promise.resolve();
         });
     }
@@ -2585,8 +2597,6 @@ class ApiClient {
      */
     updateEasyPassword(userId, newPassword) {
 
-        const instance = this;
-
         if (!userId) {
             Promise.reject();
             return;
@@ -2594,6 +2604,7 @@ class ApiClient {
 
         const url = this.getUrl(`Users/${userId}/EasyPassword`);
         const serverId = this.serverId();
+        const instance = this;
 
         return this.ajax({
             type: "POST",
@@ -2602,7 +2613,7 @@ class ApiClient {
                 NewPw: newPassword
             }
         }).then(() => {
-            removeCachedUser(userId, serverId);
+            removeCachedUser(instance.appStorage, userId, serverId);
             return Promise.resolve();
         });
     }
@@ -2619,6 +2630,7 @@ class ApiClient {
 
         const url = this.getUrl(`Users/${userId}/Password`);
         const serverId = this.serverId();
+        const instance = this;
 
         const postData = {
 
@@ -2631,7 +2643,7 @@ class ApiClient {
             url,
             data: postData
         }).then(() => {
-            removeCachedUser(userId, serverId);
+            removeCachedUser(instance.appStorage, userId, serverId);
             return Promise.resolve();
         });
     }
@@ -2644,6 +2656,7 @@ class ApiClient {
 
         const url = this.getUrl(`Users/${userId}/EasyPassword`);
         const serverId = this.serverId();
+        const instance = this;
 
         const postData = {
 
@@ -2657,7 +2670,7 @@ class ApiClient {
             data: postData
 
         }).then(() => {
-            removeCachedUser(userId, serverId);
+            removeCachedUser(instance.appStorage, userId, serverId);
             return Promise.resolve();
         });
     }
@@ -3043,20 +3056,72 @@ class ApiClient {
         return this.getJSON(url);
     }
 
+    getVideoCodecs(userId, options) {
+
+        if (!userId) {
+            throw new Error("null userId");
+        }
+
+        options = options || {};
+        options.userId = userId;
+
+        const url = this.getUrl("VideoCodecs", options);
+
+        return this.getJSON(url);
+    }
+
+    getAudioCodecs(userId, options) {
+
+        if (!userId) {
+            throw new Error("null userId");
+        }
+
+        options = options || {};
+        options.userId = userId;
+
+        const url = this.getUrl("AudioCodecs", options);
+
+        return this.getJSON(url);
+    }
+
+    getSubtitleCodecs(userId, options) {
+
+        if (!userId) {
+            throw new Error("null userId");
+        }
+
+        options = options || {};
+        options.userId = userId;
+
+        const url = this.getUrl("SubtitleCodecs", options);
+
+        return this.getJSON(url);
+    }
+
     getPrefixes(userId, options) {
 
         if (!userId) {
             throw new Error("null userId");
         }
 
-        if (!this.isMinServerVersion('3.6.0.60')) {
-            return Promise.resolve(['#', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']);
+        options = options || {};
+        options.userId = userId;
+
+        const url = this.getUrl("Items/Prefixes", options);
+
+        return this.getJSON(url);
+    }
+
+    getArtistPrefixes(userId, options) {
+
+        if (!userId) {
+            throw new Error("null userId");
         }
 
         options = options || {};
         options.userId = userId;
 
-        const url = this.getUrl("Prefixes", options);
+        const url = this.getUrl("Artists/Prefixes", options);
 
         return this.getJSON(url);
     }
@@ -3892,7 +3957,7 @@ function onMessageReceivedInternal(instance, msg) {
         const user = msg.Data;
         if (user.Id === instance.getCurrentUserId()) {
 
-            saveUserInCache(user);
+            saveUserInCache(instance.appStorage, user);
             instance._userViewsPromise = null;
         }
     } else if (msgType === 'LibraryChanged') {

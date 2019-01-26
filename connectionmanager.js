@@ -69,10 +69,6 @@ function updateServerInfo(server, systemInfo) {
     }
 }
 
-function getEmbyServerUrl(baseUrl, handler) {
-    return `${baseUrl}/emby/${handler}`;
-}
-
 function getFetchPromise(request) {
 
     const headers = request.headers || {};
@@ -156,7 +152,9 @@ function ajax(request) {
 
         if (response.status < 400) {
 
-            if (request.dataType === 'json' || request.headers.accept === 'application/json') {
+            if (request.dataType === 'text') {
+                return response.text();
+            } else if (request.dataType === 'json' || request.headers.accept === 'application/json') {
                 return response.json();
             } else {
                 return response;
@@ -338,7 +336,7 @@ export default class ConnectionManager {
 
             if (!apiClient) {
 
-                apiClient = new apiClientFactory(serverUrl, appName, appVersion, deviceName, deviceId, devicePixelRatio);
+                apiClient = new apiClientFactory(appStorage, wakeOnLanFn, serverUrl, appName, appVersion, deviceName, deviceId, devicePixelRatio);
 
                 self._apiClients.push(apiClient);
 
@@ -482,7 +480,7 @@ export default class ConnectionManager {
                 throw new Error("credentials.ConnectUserId cannot be null");
             }
 
-            const = getEmbyServerUrl(serverUrl, `Connect/Exchange?format=json&ConnectUserId=${credentials.ConnectUserId}`);
+            const url = self.getEmbyServerUrl(serverUrl, `Connect/Exchange?format=json&ConnectUserId=${credentials.ConnectUserId}`);
 
             const auth = `MediaBrowser Client="${appName}", Device="${deviceName}", DeviceId="${deviceId}", Version="${appVersion}"`;
 
@@ -515,7 +513,7 @@ export default class ConnectionManager {
             return ajax({
 
                 type: "GET",
-                url: getEmbyServerUrl(serverUrl, "System/Info"),
+                url: self.getEmbyServerUrl(serverUrl, "System/Info"),
                 dataType: "json",
                 headers: {
                     "X-MediaBrowser-Token": server.AccessToken
@@ -757,7 +755,7 @@ export default class ConnectionManager {
 
             ajax({
 
-                url: getEmbyServerUrl(url, 'system/info/public'),
+                url: self.getEmbyServerUrl(url, 'system/info/public'),
                 timeout: defaultTimeout,
                 type: 'GET',
                 dataType: 'json'
@@ -829,6 +827,21 @@ export default class ConnectionManager {
             });
         }
 
+        function resolveIfAvailable(url, server, result, connectionMode, serverUrl, options, resolve) {
+
+            const promise = self.validateServerAddress ? self.validateServerAddress(self, ajax, url) : Promise.resolve();
+
+            promise.then(() => {
+                onSuccessfulConnection(server, result, connectionMode, serverUrl, options, resolve);
+            }, () => {
+                console.log('minServerVersion requirement not met. Server version: ' + result.Version);
+                resolve({
+                    State: 'ServerUpdateNeeded',
+                    Servers: [server]
+                });
+            });
+        }
+
         self.connectToServer = (server, options) => {
 
             console.log('begin connectToServer');
@@ -859,7 +872,7 @@ export default class ConnectionManager {
 
                     }
                     else {
-                        onSuccessfulConnection(server, result, connectionMode, serverUrl, options, resolve);
+                        resolveIfAvailable(serverUrl, server, result, connectionMode, serverUrl, options, resolve);
                     }
 
                 }, () => {
@@ -1287,7 +1300,8 @@ export default class ConnectionManager {
 
             params.embyUserName = apiClient.getCurrentUserName();
 
-            if (apiClient.getCurrentUserId().toLowerCase() === '81f53802ea0247ad80618f55d9b4ec3c' && params.serverId.toLowerCase() === '21585256623b4beeb26d5d3b09dec0ac') {
+            const currentUserId = apiClient.getCurrentUserId();
+            if (currentUserId && currentUserId.toLowerCase() === '81f53802ea0247ad80618f55d9b4ec3c' && params.serverId.toLowerCase() === '21585256623b4beeb26d5d3b09dec0ac') {
                 return Promise.reject();
             }
 
@@ -1499,5 +1513,10 @@ export default class ConnectionManager {
         }
 
         return this._minServerVersion;
+    }
+
+    getEmbyServerUrl(baseUrl, handler) {
+
+        return `${baseUrl}/emby/${handler}`;
     }
 }
