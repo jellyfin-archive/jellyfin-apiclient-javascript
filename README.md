@@ -1,20 +1,11 @@
-Emby.ApiClient.Javascript
-=================================
+<h1 align="center">Jellyfin ApiClient.js</h1>
+<h3 align="center">Part of the <a href="https://jellyfin.media">Jellyfin Project</a></h3>
 
-# Usage #
+<p align="center">
+Jellyfin ApiClient.js is a JavaScript library for interacting with Jellyfin's REST API.
+</p>
 
-This is a port of the [Java version](https://github.com/MediaBrowser/Emby.ApiClient.Java "Java version"). Until this is fully documented it is best to refer to it for API usage as the signatures are closely aligned.
 
-# Notes #
+## Notes
 
-- this library depends on the native fetch and promise api's. These will be expected to be polyfilled if used in a browser that doesn't support them.
-
-# Examples #
-
-This is a port of the [Java version](https://github.com/MediaBrowser/Emby.ApiClient.Java "Java version"). Until this is fully documented it is best to refer to it for API usage as the signatures are closely aligned.
-
-# Emby Mobile App #
-
-A new mobile app for Emby is in development and is built with this library:
-
-https://github.com/MediaBrowser/MediaBrowser.Mobile
+- This library depends on the native fetch and Promise APIs. These will be expected to be polyfilled if used in a browser that doesn't support them.
