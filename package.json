@@ -1,0 +1,21 @@
+{
+  "name": "jellyfin-apiclient",
+  "version": "0.0.0",
+  "description": "API client for Jellyfin",
+  "main": "apiclient.js",
+  "dependencies": {},
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jellyfin/jellyfin-apiclient-javascript.git"
+  },
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/jellyfin/jellyfin-apiclient-javascript/issues"
+  },
+  "homepage": "https://github.com/jellyfin/jellyfin-apiclient-javascript#readme"
+}
