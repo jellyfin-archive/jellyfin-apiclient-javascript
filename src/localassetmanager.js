@@ -1,7 +1,7 @@
-﻿import filerepository from 'fileRepository';
-import itemrepository from 'itemRepository';
-import useractionrepository from 'userActionRepository';
-import transfermanager from 'transferManager';
+﻿import filerepository from './sync/filerepository';
+import itemrepository from './sync/itemrepository';
+import useractionrepository from './sync/useractionrepository';
+import transfermanager from './sync/transfermanager';
 
 function getLocalItem(serverId, itemId) {
 
@@ -557,9 +557,6 @@ function getDirectoryPath(item) {
 
         parts.push("Photos");
 
-    } else if (itemtype === 'game' || itemtype === 'gamesystem') {
-
-        parts.push("Games");
     }
 
     const albumArtist = item.AlbumArtist;
@@ -581,7 +578,7 @@ function getDirectoryPath(item) {
         parts.push(item.Album);
     }
 
-    if ((mediaType === 'video' && itemtype !== 'episode') || itemtype === 'game' || item.IsFolder) {
+    if ((mediaType === 'video' && itemtype !== 'episode') || item.IsFolder) {
 
         parts.push(item.Name);
     }

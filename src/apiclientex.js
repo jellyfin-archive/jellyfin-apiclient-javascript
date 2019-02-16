@@ -1,4 +1,4 @@
-﻿import ApiClient from 'apiclient';
+﻿import ApiClient from './apiclient';
 
 const localPrefix = 'local:';
 const localViewPrefix = 'localview:';

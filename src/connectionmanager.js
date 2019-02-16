@@ -232,7 +232,6 @@ export default class ConnectionManager {
         appStorage,
         apiClientFactory,
         serverDiscoveryFn,
-        wakeOnLanFn,
         appName,
         appVersion,
         deviceName,
@@ -480,8 +479,9 @@ export default class ConnectionManager {
             if (!credentials.ConnectUserId) {
                 throw new Error("credentials.ConnectUserId cannot be null");
             }
-
-            const = getEmbyServerUrl(serverUrl, `Connect/Exchange?format=json&ConnectUserId=${credentials.ConnectUserId}`);
+            
+            // TODO wtf Luke
+            const wtf = getEmbyServerUrl(serverUrl, `Connect/Exchange?format=json&ConnectUserId=${credentials.ConnectUserId}`);
 
             const auth = `MediaBrowser Client="${appName}", Device="${deviceName}", DeviceId="${deviceId}", Version="${appVersion}"`;
 
@@ -761,11 +761,8 @@ export default class ConnectionManager {
                     resolve(servers);
                 };
 
-                serverDiscoveryFn().then(serverDiscovery => {
-                    serverDiscovery.default.findServers(1000).then(onFinish, () => {
-                        onFinish([]);
-                    });
-
+                serverDiscoveryFn.findServers(1000).then(onFinish, () => {
+                    onFinish([]);
                 });
             });
         }
@@ -1309,100 +1306,12 @@ export default class ConnectionManager {
 
         self.getRegistrationInfo = (feature, apiClient, options) => {
 
-            const params = {
-                serverId: apiClient.serverId(),
-                deviceId: self.deviceId(),
-                deviceName,
-                appName,
-                appVersion,
-                embyUserName: ''
-            };
-
-            options = options || {};
-
-            if (options.viewOnly) {
-                params.viewOnly = options.viewOnly;
-            }
-
             const cacheKey = getCacheKey(feature, apiClient, options);
-
-            const regInfo = JSON.parse(appStorage.getItem(cacheKey) || '{}');
-
-            const timeSinceLastValidation = (new Date().getTime() - (regInfo.lastValidDate || 0));
-
-            // Cache for 1 day
-            if (timeSinceLastValidation <= 86400000) {
-                console.log('getRegistrationInfo returning cached info');
-                return Promise.resolve();
-            }
-
-            let updateDevicePromise;
-            if (regInfo.deviceId && regInfo.deviceId !== params.deviceId) {
-                updateDevicePromise = ajax({
-                    url: `https://mb3admin.com/admin/service/registration/updateDevice?${paramsToString({
-                        serverId: params.serverId,
-                        oldDeviceId: regInfo.deviceId,
-                        newDeviceId: params.deviceId
-                    })}`,
-                    type: 'POST',
-                    dataType: 'json'
-                });
-            }
-
-            if (!updateDevicePromise) {
-                updateDevicePromise = Promise.resolve();
-            }
-
-            const onFailure = err => {
-                console.log('getRegistrationInfo failed: ' + err);
-
-                // Allow for up to 7 days
-                if (timeSinceLastValidation <= 604800000) {
-
-                    console.log('getRegistrationInfo returning cached info');
-                    return Promise.resolve();
-                }
-
-                throw err;
-            };
-
-            return updateDevicePromise.then(() => apiClient.getCurrentUser().then(user => {
-
-                params.embyUserName = user.Name;
-
-                if (user.Id.toLowerCase() === '81f53802ea0247ad80618f55d9b4ec3c' && params.serverId.toLowerCase() === '21585256623b4beeb26d5d3b09dec0ac') {
-                    return Promise.reject();
-                }
-
-                return ajax({
-                    url: `https://mb3admin.com/admin/service/registration/validateDevice?${paramsToString(params)}`,
-                    type: 'POST',
-                    dataType: 'json'
-
-                }).then(response => {
-
-                    appStorage.setItem(cacheKey, JSON.stringify({
-                        lastValidDate: new Date().getTime(),
-                        deviceId: params.deviceId,
-                        cacheExpirationDays: response.cacheExpirationDays
-                    }));
-                    return Promise.resolve();
-
-                }, response => {
-
-                    const status = (response || {}).status;
-                    console.log('getRegistrationInfo response: ' + status);
-
-                    if (status === 403) {
-                        return Promise.reject('overlimit');
-                    }
-
-                    if (status) {
-                        return Promise.reject();
-                    }
-                    return onFailure(response);
-                });
-            }, onFailure), onFailure);
+            appStorage.setItem(cacheKey, JSON.stringify({
+                lastValidDate: new Date().getTime(),
+                deviceId: params.deviceId,
+            }));
+            return Promise.resolve();
         };
 
         function addAppInfoToConnectRequest(request) {

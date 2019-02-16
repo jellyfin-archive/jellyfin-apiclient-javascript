@@ -76,9 +76,6 @@ export default class Credentials {
             if (server.Name) {
                 existing.Name = server.Name;
             }
-            if (server.WakeOnLanInfos && server.WakeOnLanInfos.length) {
-                existing.WakeOnLanInfos = server.WakeOnLanInfos;
-            }
             if (server.LastConnectionMode != null) {
                 existing.LastConnectionMode = server.LastConnectionMode;
             }
