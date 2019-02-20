@@ -471,6 +471,7 @@ export default class ConnectionManager {
             });
         }
 
+        // TODO remove all connect related functions
         function addAuthenticationInfoFromConnect(server, serverUrl, credentials) {
 
             if (!server.ExchangeToken) {
@@ -480,8 +481,7 @@ export default class ConnectionManager {
                 throw new Error("credentials.ConnectUserId cannot be null");
             }
             
-            // TODO wtf Luke
-            const wtf = getEmbyServerUrl(serverUrl, `Connect/Exchange?format=json&ConnectUserId=${credentials.ConnectUserId}`);
+            const url = getEmbyServerUrl(serverUrl, `Connect/Exchange?format=json&ConnectUserId=${credentials.ConnectUserId}`);
 
             const auth = `MediaBrowser Client="${appName}", Device="${deviceName}", DeviceId="${deviceId}", Version="${appVersion}"`;
 
