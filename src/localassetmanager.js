@@ -1,7 +1,7 @@
-﻿import filerepository from './sync/filerepository';
-import itemrepository from './sync/itemrepository';
-import useractionrepository from './sync/useractionrepository';
-import transfermanager from './sync/transfermanager';
+﻿import filerepository from 'sync/filerepository';
+import itemrepository from 'sync/itemrepository';
+import useractionrepository from 'sync/useractionrepository';
+import transfermanager from 'sync/transfermanager';
 
 function getLocalItem(serverId, itemId) {
 

@@ -2,15 +2,15 @@ const path = require('path');
 
 module.exports = {
     entry: {
-        apiclient: './src/apiclient.js',
-        apiclientex: './src/apiclientex.js',
-        'appstorage-localstorage': './src/appstorage-localstorage.js',
-        'appstorage-memory': './src/appstorage-memory.js',
-        connectionmanager: './src/connectionmanager.js',
-        credentials: './src/credentials.js',
-        events: './src/events.js',
-        localassetmanager: './src/localassetmanager.js',
-        serverdiscovery: './src/serverdiscovery.js'
+        apiclient: 'apiclient.js',
+        apiclientex: 'apiclientex.js',
+        'appstorage-localstorage': 'appstorage-localstorage.js',
+        'appstorage-memory': 'appstorage-memory.js',
+        connectionmanager: 'connectionmanager.js',
+        credentials: 'credentials.js',
+        events: 'events.js',
+        localassetmanager: 'localassetmanager.js',
+        serverdiscovery: 'serverdiscovery.js'
     },
     module: {
         rules: [
@@ -24,6 +24,12 @@ module.exports = {
                     }
                 }
             }
+        ],
+    },
+    resolve: {
+        modules: [
+            path.resolve(__dirname, 'node_modules'),
+            path.resolve(__dirname, './src'),
         ]
     },
     output: {

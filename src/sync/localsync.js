@@ -1,4 +1,4 @@
-﻿import MultiServerSync from './multiserversync.js';
+﻿import MultiServerSync from 'sync/multiserversync.js';
 
 let isSyncing;
 

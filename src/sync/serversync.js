@@ -1,5 +1,5 @@
-﻿import MediaSync from './mediasync';
-import localAssetManager from '../localassetmanager';
+﻿import MediaSync from 'sync/mediasync';
+import localAssetManager from 'localassetmanager';
 
 function performSync(connectionManager, server, options) {
 

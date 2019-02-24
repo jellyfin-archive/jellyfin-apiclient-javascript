@@ -1,4 +1,4 @@
-﻿import events from './events.js';
+﻿import events from 'events.js';
 
 function ensure(instance, data) {
     if (!instance._credentials) {
