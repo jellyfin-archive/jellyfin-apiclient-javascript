@@ -11,8 +11,7 @@ module.exports = {
 		events: './src/events.js',
 		fileupload: './src/fileupload.js',
 		localassetmanager: './src/localassetmanager.js',
-		serverdiscovery: './src/serverdiscovery.js',
-		wakeonlan: './src/wakeonlan.js'
+		serverdiscovery: './src/serverdiscovery.js'
 	},
 	module: {
 		rules: [
