@@ -1,7 +1,6 @@
 const path = require('path');
 
 module.exports = {
-	mode: 'development',
 	entry: {
 		apiclient: './src/apiclient.js',
 		apiclientex: './src/apiclientex.js',
@@ -33,10 +32,5 @@ module.exports = {
 		library: '[name]',
 		libraryTarget: 'umd',
 		libraryExport: 'default'
-	},
-	optimization: {
-		// We no not want to minimize our code.
-		minimize: false
-	},
-	devtool: 'source-map'
+	}
 };
