@@ -5,7 +5,8 @@ module.exports = {
 	entry: {
 		apiclient: './src/apiclient.js',
 		apiclientex: './src/apiclientex.js',
-		appStorage: './src/appstorage-localstorage.js',
+		'appstorage-localstorage': './src/appstorage-localstorage.js',
+		'appstorage-memory': './src/appstorage-memory.js',
 		connectionmanager: './src/connectionmanager.js',
 		credentials: './src/credentials.js',
 		events: './src/events.js',
