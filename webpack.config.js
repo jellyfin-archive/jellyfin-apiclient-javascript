@@ -9,7 +9,6 @@ module.exports = {
 		connectionmanager: './src/connectionmanager.js',
 		credentials: './src/credentials.js',
 		events: './src/events.js',
-		fileupload: './src/fileupload.js',
 		localassetmanager: './src/localassetmanager.js',
 		serverdiscovery: './src/serverdiscovery.js'
 	},
