@@ -634,3 +634,6 @@ ASALocalRun/
 healthchecksdb
 
 # End of https://www.gitignore.io/api/node,macos,linux,windows,webstorm,jetbrains,visualstudio,visualstudiocode
+
+# Custom
+dist/
