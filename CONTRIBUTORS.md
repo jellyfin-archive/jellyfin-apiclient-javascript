@@ -1,6 +1,7 @@
 # Jellyfin Contributors
 
  - [thornbill](https://github.com/thornbill)
+ - [cvium](https://github.com/cvium)
 
 # Emby Contributors
 
