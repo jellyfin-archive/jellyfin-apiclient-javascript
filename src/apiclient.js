@@ -1,4 +1,4 @@
-﻿import events from './events.js';
+﻿import events from 'events.js';
 
 function redetectBitrate(instance) {
     stopBitrateDetection(instance);
@@ -117,7 +117,6 @@ function getFetchPromise(request) {
 class ApiClient {
     constructor(
         appStorage,
-        wakeOnLanFn,
         serverAddress,
         appName,
         appVersion,
@@ -136,7 +135,6 @@ class ApiClient {
         console.log(`ApiClient deviceId: ${deviceId}`);
 
         this.appStorage = appStorage;
-        this.wakeOnLanFn = wakeOnLanFn;
         this._serverInfo = {};
         this._serverAddress = serverAddress;
         this._deviceId = deviceId;
@@ -230,7 +228,6 @@ class ApiClient {
         setSavedEndpointInfo(this, null);
 
         redetectBitrate(this);
-        refreshWakeOnLanInfoIfNeeded(this);
     }
 
     /**
@@ -386,7 +383,6 @@ class ApiClient {
         this._serverInfo.AccessToken = accessKey;
         this._serverInfo.UserId = userId;
         redetectBitrate(this);
-        refreshWakeOnLanInfoIfNeeded(this);
     }
 
     serverInfo(info) {
@@ -548,7 +544,6 @@ class ApiClient {
 
                 const afterOnAuthenticated = () => {
                     redetectBitrate(instance);
-                    refreshWakeOnLanInfoIfNeeded(instance);
                     resolve(result);
                 };
 
@@ -718,12 +713,6 @@ class ApiClient {
 
         const val = paramsToString({ name });
         return val.substring(val.indexOf('=') + 1).replace("'", '%27');
-    }
-
-    getProductNews(options = {}) {
-        const url = this.getUrl("News/Product", options);
-
-        return this.getJSON(url);
     }
 
     getDownloadSpeed(byteSize) {
@@ -1540,26 +1529,6 @@ class ApiClient {
     }
 
     /**
-     * Gets the latest available application update (if any)
-     */
-    getAvailableApplicationUpdate() {
-
-        const url = this.getUrl("Packages/Updates", { PackageType: "System" });
-
-        return this.getJSON(url);
-    }
-
-    /**
-     * Gets the latest available plugin updates (if any)
-     */
-    getAvailablePluginUpdates() {
-
-        const url = this.getUrl("Packages/Updates", { PackageType: "UserInstalled" });
-
-        return this.getJSON(url);
-    }
-
-    /**
      * Gets the virtual folder list
      */
     getVirtualFolders() {
@@ -2280,23 +2249,6 @@ class ApiClient {
         return this.getJSON(url);
     }
 
-    getGameGenre(name, userId) {
-
-        if (!name) {
-            throw new Error("null name");
-        }
-
-        const options = {};
-
-        if (userId) {
-            options.userId = userId;
-        }
-
-        const url = this.getUrl(`GameGenres/${this.encodeName(name)}`, options);
-
-        return this.getJSON(url);
-    }
-
     /**
      * Gets an artist
      */
@@ -2936,20 +2888,6 @@ class ApiClient {
         return this.getJSON(url);
     }
 
-    getGameGenres(userId, options) {
-
-        if (!userId) {
-            throw new Error("null userId");
-        }
-
-        options = options || {};
-        options.userId = userId;
-
-        const url = this.getUrl("GameGenres", options);
-
-        return this.getJSON(url);
-    }
-
     /**
         Gets people from an item
     */
@@ -2997,20 +2935,6 @@ class ApiClient {
         }
 
         const url = this.getUrl(`Users/${userId}/Items/${itemId}/LocalTrailers`);
-
-        return this.getJSON(url);
-    }
-
-    getGameSystems() {
-
-        const options = {};
-
-        const userId = this.getCurrentUserId();
-        if (userId) {
-            options.userId = userId;
-        }
-
-        const url = this.getUrl("Games/SystemSummaries", options);
 
         return this.getJSON(url);
     }
@@ -3539,11 +3463,6 @@ class ApiClient {
         });
     }
 
-    getWakeOnLanInfo() {
-
-        return this.getJSON(this.getUrl('System/WakeOnLanInfo'));
-    }
-
     getLatestItems(options = {}) {
         return this.getJSON(this.getUrl(`Users/${this.getCurrentUserId()}/Items/Latest`, options));
     }
@@ -3551,22 +3470,6 @@ class ApiClient {
     getFilters(options) {
 
         return this.getJSON(this.getUrl('Items/Filters2', options));
-    }
-
-    supportsWakeOnLan() {
-
-        return getCachedWakeOnLanInfo(this).length > 0;
-    }
-
-    wakeOnLan() {
-
-        const infos = getCachedWakeOnLanInfo(this);
-        const instance = this;
-
-        return new Promise((resolve, reject) => {
-
-            sendNextWakeOnLan(instance, infos, 0, resolve);
-        });
     }
 
     setSystemInfo(info) {
@@ -3867,9 +3770,6 @@ function getRemoteImagePrefix(instance, options) {
     } else if (options.musicGenre) {
         urlPrefix = `MusicGenres/${instance.encodeName(options.musicGenre)}`;
         delete options.musicGenre;
-    } else if (options.gameGenre) {
-        urlPrefix = `GameGenres/${instance.encodeName(options.gameGenre)}`;
-        delete options.gameGenre;
     } else if (options.studio) {
         urlPrefix = `Studios/${instance.encodeName(options.studio)}`;
         delete options.studio;
@@ -3910,73 +3810,6 @@ function normalizeImageOptions(instance, options) {
     if (instance.normalizeImageOptions) {
         instance.normalizeImageOptions(options);
     }
-}
-
-function getCachedWakeOnLanInfo(instance) {
-
-    const serverId = instance.serverId();
-    const json = instance.appStorage.getItem(`server-${serverId}-wakeonlaninfo`);
-
-    if (json) {
-        return JSON.parse(json);
-    }
-
-    return [];
-}
-
-function refreshWakeOnLanInfoIfNeeded(instance) {
-
-    instance.wakeOnLanFn().then(wakeOnLan => {
-        if (!wakeOnLan.default.isSupported()) {
-            return;
-        }
-
-        // Re-using enableAutomaticBitrateDetection because it's set to false during background syncing
-        // We can always have a dedicated option if needed
-        if (instance.accessToken() && instance.enableAutomaticBitrateDetection !== false) {
-            console.log('refreshWakeOnLanInfoIfNeeded');
-            setTimeout(refreshWakeOnLanInfo.bind(instance), 10000);
-        }
-    });
-}
-
-function refreshWakeOnLanInfo() {
-
-    const instance = this;
-
-    console.log('refreshWakeOnLanInfo');
-    instance.wakeOnLanFn().then(info => {
-
-        const serverId = instance.serverId();
-        instance.appStorage.setItem(`server-${serverId}-wakeonlaninfo`, JSON.stringify(info));
-        return info;
-
-    }, err => // could be an older server that doesn't have this api
-            []);
-}
-
-function sendNextWakeOnLan(instance, infos, index, resolve) {
-
-    if (index >= infos.length) {
-
-        resolve();
-        return;
-    }
-
-    const info = infos[index];
-
-    console.log(`sending wakeonlan to ${info.MacAddress}`);
-
-    instance.wakeOnLanFn().then(wakeOnLan => {
-        wakeOnLan.default.send(info).then(result => {
-
-            sendNextWakeOnLan(infos, index + 1, resolve);
-
-        }, () => {
-
-            sendNextWakeOnLan(infos, index + 1, resolve);
-        });
-    });
 }
 
 function compareVersions(a, b) {

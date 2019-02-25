@@ -1,4 +1,4 @@
-﻿import events from './events.js';
+﻿import events from 'events.js';
 
 function ensure(instance, data) {
     if (!instance._credentials) {
@@ -75,9 +75,6 @@ export default class Credentials {
             }
             if (server.Name) {
                 existing.Name = server.Name;
-            }
-            if (server.WakeOnLanInfos && server.WakeOnLanInfos.length) {
-                existing.WakeOnLanInfos = server.WakeOnLanInfos;
             }
             if (server.LastConnectionMode != null) {
                 existing.LastConnectionMode = server.LastConnectionMode;

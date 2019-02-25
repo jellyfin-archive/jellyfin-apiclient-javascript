@@ -110,7 +110,6 @@ function getLocalView(instance, serverId, userId) {
 export default class ApiClientEx extends ApiClient {
     constructor(
         appStorage,
-        wakeOnLanModulePath,
         serverAddress,
         clientName,
         applicationVersion,
@@ -119,7 +118,7 @@ export default class ApiClientEx extends ApiClient {
         devicePixelRatio,
         localAssetManager) {
 
-        super(appStorage, wakeOnLanModulePath, serverAddress, clientName, applicationVersion, deviceName, deviceId, devicePixelRatio);
+        super(appStorage, serverAddress, clientName, applicationVersion, deviceName, deviceId, devicePixelRatio);
         this.localAssetManager = localAssetManager;
     }
 

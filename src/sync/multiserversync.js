@@ -1,4 +1,4 @@
-﻿import ServerSync from './serversync';
+﻿import ServerSync from 'sync/serversync';
 
 function syncNext(connectionManager, servers, index, options, resolve, reject) {
     const length = servers.length;
