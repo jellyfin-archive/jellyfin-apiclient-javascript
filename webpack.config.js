@@ -3,14 +3,12 @@ const path = require('path');
 module.exports = {
     entry: {
         apiclient: 'apiclient.js',
-        apiclientex: 'apiclientex.js',
-        'appstorage-localstorage': 'appstorage-localstorage.js',
-        'appstorage-memory': 'appstorage-memory.js',
+        apiclientcore: 'apiclientcore.js',
+        appStorage: 'appStorage.js',
         connectionmanager: 'connectionmanager.js',
         credentials: 'credentials.js',
         events: 'events.js',
-        localassetmanager: 'localassetmanager.js',
-        serverdiscovery: 'serverdiscovery.js'
+        localassetmanager: 'localassetmanager.js'
     },
     module: {
         rules: [
