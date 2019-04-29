@@ -489,12 +489,19 @@ class ApiClient {
         return false;
     }
 
+    /**
+    * Logout current user
+    */
     logout() {
 
         stopBitrateDetection(this);
         this.closeWebSocket();
 
         const done = () => {
+            const info = this.serverInfo();
+            if (info && info.UserId && info.Id) {
+                this.appStorage.removeItem(`user-${info.UserId}-${info.Id}`);
+            }
             this.setAuthenticationInfo(null, null);
         };
 
