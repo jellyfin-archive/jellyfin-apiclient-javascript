@@ -8,7 +8,15 @@ module.exports = {
         connectionmanager: 'connectionmanager.js',
         credentials: 'credentials.js',
         events: 'events.js',
-        localassetmanager: 'localassetmanager.js'
+        localassetmanager: 'localassetmanager.js',
+        filerepository: 'sync/filerepository.js',
+        itemrepository: 'sync/itemrepository.js',
+        localsync: 'sync/localsync.js',
+        mediasync: 'sync/mediasync.js',
+        multiserversync: 'sync/multiserversync.js',
+        serversync: 'sync/serversync.js',
+        transfermanager: 'sync/transfermanager.js',
+        useractionrepository: 'sync/useractionrepository.js'
     },
     module: {
         rules: [
