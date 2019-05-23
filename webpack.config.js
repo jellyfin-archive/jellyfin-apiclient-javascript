@@ -2,6 +2,8 @@ const path = require('path');
 
 module.exports = {
     entry: {
+        'jellyfin-apiclient': 'index.js',
+        // TODO: the following entry points should be deprecated in favor of the unified file above
         apiclient: 'apiclient.js',
         apiclientcore: 'apiclientcore.js',
         appStorage: 'appStorage.js',
@@ -35,7 +37,7 @@ module.exports = {
     resolve: {
         modules: [
             path.resolve(__dirname, 'node_modules'),
-            path.resolve(__dirname, 'src'),
+            path.resolve(__dirname, 'src')
         ]
     },
     output: {
