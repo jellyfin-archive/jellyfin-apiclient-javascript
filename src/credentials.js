@@ -23,7 +23,7 @@ function set(instance, data) {
 
 export default class Credentials {
     constructor(appStorage, key) {
-        this.key = key || 'servercredentials3';
+        this.key = key || 'jellyfin_credentials';
         this.appStorage = appStorage;
     }
 
