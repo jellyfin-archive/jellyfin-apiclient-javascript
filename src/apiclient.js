@@ -2626,17 +2626,13 @@ class ApiClient {
      * Creates a user
      * @param {Object} user
      */
-    createUser(name) {
-
+    createUser(user) {
         const url = this.getUrl("Users/New");
-
         return this.ajax({
             type: "POST",
             url,
-            data: {
-                Name: name
-            },
-            dataType: "json"
+            data: JSON.stringify(user),
+            contentType: "application/json"
         });
     }
 
