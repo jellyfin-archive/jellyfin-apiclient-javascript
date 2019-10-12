@@ -172,10 +172,6 @@ function ajax(request) {
     });
 }
 
-function getConnectUrl(handler) {
-    return `https://connect.emby.media/service/${handler}`;
-}
-
 function replaceAll(originalString, strReplace, strWith) {
     const reg = new RegExp(strReplace, 'ig');
     return originalString.replace(reg, strWith);
@@ -448,29 +444,6 @@ export default class ConnectionManager {
             }
         }
 
-        function getConnectUser(userId, accessToken) {
-
-            if (!userId) {
-                throw new Error("null userId");
-            }
-            if (!accessToken) {
-                throw new Error("null accessToken");
-            }
-
-            const url = `https://connect.emby.media/service/user?id=${userId}`;
-
-            return ajax({
-                type: "GET",
-                url,
-                dataType: "json",
-                headers: {
-                    "X-Application": `${appName}/${appVersion}`,
-                    "X-Connect-UserToken": accessToken
-                }
-
-            });
-        }
-
         // TODO remove all connect related functions
         function addAuthenticationInfoFromConnect(server, serverUrl, credentials) {
 
@@ -659,36 +632,6 @@ export default class ConnectionManager {
             });
         }
 
-        function getConnectServers(credentials) {
-
-            console.log('Begin getConnectServers');
-
-            if (!credentials.ConnectAccessToken || !credentials.ConnectUserId) {
-                return Promise.resolve([]);
-            }
-
-            const url = `https://connect.emby.media/service/servers?userId=${credentials.ConnectUserId}`;
-
-            return ajax({
-                type: "GET",
-                url,
-                dataType: "json",
-                headers: {
-                    "X-Application": `${appName}/${appVersion}`,
-                    "X-Connect-UserToken": credentials.ConnectAccessToken
-                }
-
-            }).then(servers => servers.map(i => ({
-                ExchangeToken: i.AccessKey,
-                ConnectServerId: i.Id,
-                Id: i.SystemId,
-                Name: i.Name,
-                RemoteAddress: i.Url,
-                LocalAddress: i.LocalAddress,
-                UserLinkType: (i.UserType || '').toLowerCase() === "guest" ? "Guest" : "LinkedUser"
-            })), () => credentials.Servers.slice(0).filter(s => s.ExchangeToken));
-        }
-
         self.getSavedServers = () => {
 
             const credentials = credentialProvider.credentials();
@@ -707,14 +650,16 @@ export default class ConnectionManager {
             // Clone the array
             const credentials = credentialProvider.credentials();
 
-            return Promise.all([getConnectServers(credentials), findServers()]).then(responses => {
+            return Promise.all([findServers()]).then(responses => {
 
                 const connectServers = responses[0];
                 const foundServers = responses[1];
 
                 let servers = credentials.Servers.slice(0);
-                mergeServers(credentialProvider, servers, foundServers);
-                mergeServers(credentialProvider, servers, connectServers);
+                
+                //TODO: remove all connect related
+                //mergeServers(credentialProvider, servers, foundServers);
+                //mergeServers(credentialProvider, servers, connectServers);
 
                 servers = filterServers(servers, connectServers);
 
@@ -1055,263 +1000,6 @@ export default class ConnectionManager {
             };
 
             return self.connectToServer(server, options).catch(onFail);
-        };
-
-        self.loginToConnect = (username, password) => {
-
-            if (!username) {
-                return Promise.reject();
-            }
-            if (!password) {
-                return Promise.reject();
-            }
-
-            return ajax({
-                type: "POST",
-                url: "https://connect.emby.media/service/user/authenticate",
-                data: {
-                    nameOrEmail: username,
-                    rawpw: password
-                },
-                dataType: "json",
-                contentType: 'application/x-www-form-urlencoded; charset=UTF-8',
-                headers: {
-                    "X-Application": `${appName}/${appVersion}`
-                }
-
-            }).then(result => {
-
-                const credentials = credentialProvider.credentials();
-
-                credentials.ConnectAccessToken = result.AccessToken;
-                credentials.ConnectUserId = result.User.Id;
-
-                credentialProvider.credentials(credentials);
-
-                onConnectUserSignIn(result.User);
-
-                return result;
-            });
-        };
-
-        self.signupForConnect = options => {
-
-            const email = options.email;
-            const username = options.username;
-            const password = options.password;
-            const passwordConfirm = options.passwordConfirm;
-
-            if (!email) {
-                return Promise.reject({ errorCode: 'invalidinput' });
-            }
-            if (!username) {
-                return Promise.reject({ errorCode: 'invalidinput' });
-            }
-            if (!password) {
-                return Promise.reject({ errorCode: 'invalidinput' });
-            }
-            if (!passwordConfirm) {
-                return Promise.reject({ errorCode: 'passwordmatch' });
-            }
-            if (password !== passwordConfirm) {
-                return Promise.reject({ errorCode: 'passwordmatch' });
-            }
-
-            const data = {
-                email,
-                userName: username,
-                rawpw: password
-            };
-
-            if (options.grecaptcha) {
-                data.grecaptcha = options.grecaptcha;
-            }
-
-            return ajax({
-                type: "POST",
-                url: "https://connect.emby.media/service/register",
-                data,
-                dataType: "json",
-                contentType: 'application/x-www-form-urlencoded; charset=UTF-8',
-                headers: {
-                    "X-Application": `${appName}/${appVersion}`,
-                    "X-CONNECT-TOKEN": "CONNECT-REGISTER"
-                }
-
-            }).catch(response => {
-
-                try {
-                    return response.json();
-                } catch (err) {
-                    throw err;
-                }
-
-            }).then(result => {
-                if (result && result.Status) {
-
-                    if (result.Status === 'SUCCESS') {
-                        return Promise.resolve(result);
-                    }
-                    return Promise.reject({ errorCode: result.Status });
-                } else {
-                    Promise.reject();
-                }
-            });
-        };
-
-        self.getUserInvitations = () => {
-
-            const connectToken = self.connectToken();
-
-            if (!connectToken) {
-                throw new Error("null connectToken");
-            }
-            if (!self.connectUserId()) {
-                throw new Error("null connectUserId");
-            }
-
-            const url = `https://connect.emby.media/service/servers?userId=${self.connectUserId()}&status=Waiting`;
-
-            return ajax({
-                type: "GET",
-                url,
-                dataType: "json",
-                headers: {
-                    "X-Connect-UserToken": connectToken,
-                    "X-Application": `${appName}/${appVersion}`
-                }
-
-            });
-        };
-
-        self.deleteServer = serverId => {
-
-            if (!serverId) {
-                throw new Error("null serverId");
-            }
-
-            let server = credentialProvider.credentials().Servers.filter(s => s.Id === serverId);
-            server = server.length ? server[0] : null;
-
-            return new Promise((resolve, reject) => {
-
-                function onDone() {
-                    const credentials = credentialProvider.credentials();
-
-                    credentials.Servers = credentials.Servers.filter(s => s.Id !== serverId);
-
-                    credentialProvider.credentials(credentials);
-                    resolve();
-                }
-
-                if (!server.ConnectServerId) {
-                    onDone();
-                    return;
-                }
-
-                const connectToken = self.connectToken();
-                const connectUserId = self.connectUserId();
-
-                if (!connectToken || !connectUserId) {
-                    onDone();
-                    return;
-                }
-
-                const url = `https://connect.emby.media/service/serverAuthorizations?serverId=${server.ConnectServerId}&userId=${connectUserId}`;
-
-                ajax({
-                    type: "DELETE",
-                    url,
-                    headers: {
-                        "X-Connect-UserToken": connectToken,
-                        "X-Application": `${appName}/${appVersion}`
-                    }
-
-                }).then(onDone, onDone);
-            });
-        };
-
-        self.rejectServer = serverId => {
-
-            const connectToken = self.connectToken();
-
-            if (!serverId) {
-                throw new Error("null serverId");
-            }
-            if (!connectToken) {
-                throw new Error("null connectToken");
-            }
-            if (!self.connectUserId()) {
-                throw new Error("null connectUserId");
-            }
-
-            const url = `https://connect.emby.media/service/serverAuthorizations?serverId=${serverId}&userId=${self.connectUserId()}`;
-
-            return fetch(url, {
-                method: "DELETE",
-                headers: {
-                    "X-Connect-UserToken": connectToken,
-                    "X-Application": `${appName}/${appVersion}`
-                }
-            });
-        };
-
-        self.acceptServer = serverId => {
-
-            const connectToken = self.connectToken();
-
-            if (!serverId) {
-                throw new Error("null serverId");
-            }
-            if (!connectToken) {
-                throw new Error("null connectToken");
-            }
-            if (!self.connectUserId()) {
-                throw new Error("null connectUserId");
-            }
-
-            const url = `https://connect.emby.media/service/ServerAuthorizations/accept?serverId=${serverId}&userId=${self.connectUserId()}`;
-
-            return ajax({
-                type: "GET",
-                url,
-                headers: {
-                    "X-Connect-UserToken": connectToken,
-                    "X-Application": `${appName}/${appVersion}`
-                }
-
-            });
-        };
-
-        function getCacheKey(feature, apiClient, options = {}) {
-            const viewOnly = options.viewOnly;
-
-            let cacheKey = `regInfo-${apiClient.serverId()}`;
-
-            if (viewOnly) {
-                cacheKey += '-viewonly';
-            }
-
-            return cacheKey;
-        }
-
-        self.resetRegistrationInfo = apiClient => {
-
-            let cacheKey = getCacheKey('themes', apiClient, { viewOnly: true });
-            appStorage.removeItem(cacheKey);
-
-            cacheKey = getCacheKey('themes', apiClient, { viewOnly: false });
-            appStorage.removeItem(cacheKey);
-        };
-
-        self.getRegistrationInfo = (feature, apiClient, options) => {
-
-            const cacheKey = getCacheKey(feature, apiClient, options);
-            appStorage.setItem(cacheKey, JSON.stringify({
-                lastValidDate: new Date().getTime(),
-                deviceId: params.deviceId,
-            }));
-            return Promise.resolve();
         };
 
         function addAppInfoToConnectRequest(request) {
