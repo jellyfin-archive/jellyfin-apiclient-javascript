@@ -45,15 +45,6 @@ function resolveFailure(instance, resolve) {
     });
 }
 
-function mergeServers(credentialProvider, list1, list2) {
-
-    for (let i = 0, length = list2.length; i < length; i++) {
-        credentialProvider.addOrUpdateServer(list1, list2[i]);
-    }
-
-    return list1;
-}
-
 function updateServerInfo(server, systemInfo) {
 
     server.Name = systemInfo.ServerName;
@@ -320,12 +311,6 @@ export default class ConnectionManager {
             credentials.Servers = [];
             credentialProvider.credentials(credentials);
         };
-
-        function onConnectUserSignIn(user) {
-
-            connectUser = user;
-            events.trigger(self, 'connectusersignedin', [user]);
-        }
 
         self._getOrAddApiClient = (server, serverUrl) => {
 
