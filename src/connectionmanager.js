@@ -423,63 +423,11 @@ export default class ConnectionManager {
         }
 
         function ensureConnectUser(credentials) {
-
-            if (connectUser && connectUser.Id === credentials.ConnectUserId) {
-                return Promise.resolve();
-            }
-
-            else if (credentials.ConnectUserId && credentials.ConnectAccessToken) {
-
-                connectUser = null;
-
-                return getConnectUser(credentials.ConnectUserId, credentials.ConnectAccessToken).then(user => {
-
-                    onConnectUserSignIn(user);
-                    return Promise.resolve();
-
-                }, () => Promise.resolve());
-
-            } else {
-                return Promise.resolve();
-            }
+            return Promise.resolve();            
         }
 
-        // TODO remove all connect related functions
         function addAuthenticationInfoFromConnect(server, serverUrl, credentials) {
-
-            if (!server.ExchangeToken) {
-                throw new Error("server.ExchangeToken cannot be null");
-            }
-            if (!credentials.ConnectUserId) {
-                throw new Error("credentials.ConnectUserId cannot be null");
-            }
-            
-            const url = getEmbyServerUrl(serverUrl, `Connect/Exchange?format=json&ConnectUserId=${credentials.ConnectUserId}`);
-
-            const auth = `MediaBrowser Client="${appName}", Device="${deviceName}", DeviceId="${deviceId}", Version="${appVersion}"`;
-
-            return ajax({
-                type: "GET",
-                url,
-                dataType: "json",
-                headers: {
-                    "X-MediaBrowser-Token": server.ExchangeToken,
-                    "X-Emby-Authorization": auth
-                }
-
-            }).then(auth => {
-
-                server.UserId = auth.LocalUserId;
-                server.AccessToken = auth.AccessToken;
-                return auth;
-
-            }, () => {
-
-                server.UserId = null;
-                server.AccessToken = null;
-                return Promise.reject();
-
-            });
+            return Promise.resolve();
         }
 
         function validateAuthentication(server, serverUrl) {
@@ -652,17 +600,10 @@ export default class ConnectionManager {
 
             return Promise.all([findServers()]).then(responses => {
 
-                const connectServers = responses[0];
-                const foundServers = responses[1];
+                const foundServers = responses[0];
 
                 let servers = credentials.Servers.slice(0);
                 
-                //TODO: remove all connect related
-                //mergeServers(credentialProvider, servers, foundServers);
-                //mergeServers(credentialProvider, servers, connectServers);
-
-                servers = filterServers(servers, connectServers);
-
                 servers.sort((a, b) => (b.DateLastAccessed || 0) - (a.DateLastAccessed || 0));
 
                 credentials.Servers = servers;
