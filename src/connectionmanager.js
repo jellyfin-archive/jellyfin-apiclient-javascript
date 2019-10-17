@@ -614,19 +614,6 @@ export default class ConnectionManager {
             });
         };
 
-        function filterServers(servers, connectServers) {
-
-            return servers.filter(server => {
-
-                // It's not a connect server, so assume it's still valid
-                if (!server.ExchangeToken) {
-                    return true;
-                }
-
-                return connectServers.filter(connectServer => server.Id === connectServer.Id).length > 0;
-            });
-        }
-
         function findServers() {
 
             return new Promise((resolve, reject) => {
