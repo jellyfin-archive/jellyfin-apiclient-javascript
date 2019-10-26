@@ -408,7 +408,9 @@ export default class ConnectionManager {
         }
 
         function ensureConnectUser(credentials) {
-            return Promise.resolve();            
+            if (connectUser && connectUser.Id === credentials.ConnectUserId) {
+                return Promise.resolve();
+            }            
         }
 
         function validateAuthentication(server, serverUrl) {
