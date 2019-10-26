@@ -410,7 +410,7 @@ export default class ConnectionManager {
         function ensureConnectUser(credentials) {
             if (connectUser && connectUser.Id === credentials.ConnectUserId) {
                 return Promise.resolve();
-            }            
+            }
         }
 
         function validateAuthentication(server, serverUrl) {
@@ -586,7 +586,7 @@ export default class ConnectionManager {
                 const foundServers = responses[0];
 
                 let servers = credentials.Servers.slice(0);
-                
+
                 servers.sort((a, b) => (b.DateLastAccessed || 0) - (a.DateLastAccessed || 0));
 
                 credentials.Servers = servers;
@@ -716,15 +716,27 @@ export default class ConnectionManager {
 
             // manualAddressOnly is used for the local web app that always connects to a fixed address
             if (!serverInfo.manualAddressOnly && serverInfo.LocalAddress && addressesStrings.indexOf(serverInfo.LocalAddress) === -1) {
-                addresses.push({ url: serverInfo.LocalAddress, mode: ConnectionMode.Local, timeout: 0 });
+                addresses.push({
+                    url: serverInfo.LocalAddress,
+                    mode: ConnectionMode.Local,
+                    timeout: 0
+                });
                 addressesStrings.push(addresses[addresses.length - 1].url);
             }
             if (serverInfo.ManualAddress && addressesStrings.indexOf(serverInfo.ManualAddress) === -1) {
-                addresses.push({ url: serverInfo.ManualAddress, mode: ConnectionMode.Manual, timeout: 100 });
+                addresses.push({
+                    url: serverInfo.ManualAddress,
+                    mode: ConnectionMode.Manual,
+                    timeout: 100
+                });
                 addressesStrings.push(addresses[addresses.length - 1].url);
             }
             if (!serverInfo.manualAddressOnly && serverInfo.RemoteAddress && addressesStrings.indexOf(serverInfo.RemoteAddress) === -1) {
-                addresses.push({ url: serverInfo.RemoteAddress, mode: ConnectionMode.Remote, timeout: 200 });
+                addresses.push({
+                    url: serverInfo.RemoteAddress,
+                    mode: ConnectionMode.Remote,
+                    timeout: 200
+                });
                 addressesStrings.push(addresses[addresses.length - 1].url);
             }
 
@@ -770,14 +782,12 @@ export default class ConnectionManager {
                             Servers: [server]
                         });
 
-                    }
-                    else if (server.Id && result.Id !== server.Id) {
+                    } else if (server.Id && result.Id !== server.Id) {
 
                         console.log('http request succeeded, but found a different server Id than what was expected');
                         resolveFailure(self, resolve);
 
-                    }
-                    else {
+                    } else {
                         onSuccessfulConnection(server, result, connectionMode, serverUrl, options, resolve);
                     }
 
@@ -795,11 +805,10 @@ export default class ConnectionManager {
             if (credentials.ConnectAccessToken && options.enableAutoLogin !== false) {
 
                 ensureConnectUser(credentials).then(() => {
-                    
-                     afterConnectValidated(server, credentials, systemInfo, connectionMode, serverUrl, true, options, resolve);                    
+
+                    afterConnectValidated(server, credentials, systemInfo, connectionMode, serverUrl, true, options, resolve);
                 });
-            }
-            else {
+            } else {
                 afterConnectValidated(server, credentials, systemInfo, connectionMode, serverUrl, true, options, resolve);
             }
         }
@@ -869,8 +878,7 @@ export default class ConnectionManager {
                 result.ApiClient.getCurrentUser().then((user) => {
                     onLocalUserSignIn(server, serverUrl, user).then(resolveActions, resolveActions);
                 }, resolveActions);
-            }
-            else {
+            } else {
                 resolveActions();
             }
         }
@@ -1002,9 +1010,7 @@ export default class ConnectionManager {
                 if (typeof (msg.Data) === 'string') {
                     try {
                         msg.Data = JSON.parse(msg.Data);
-                    }
-                    catch (err) {
-                    }
+                    } catch (err) {}
                 }
 
                 apiClient.handleMessageReceived(msg);
