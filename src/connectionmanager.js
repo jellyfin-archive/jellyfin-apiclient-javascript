@@ -411,10 +411,6 @@ export default class ConnectionManager {
             return Promise.resolve();            
         }
 
-        function addAuthenticationInfoFromConnect(server, serverUrl, credentials) {
-            return Promise.resolve();
-        }
-
         function validateAuthentication(server, serverUrl) {
 
             return ajax({
@@ -797,21 +793,8 @@ export default class ConnectionManager {
             if (credentials.ConnectAccessToken && options.enableAutoLogin !== false) {
 
                 ensureConnectUser(credentials).then(() => {
-
-                    if (server.ExchangeToken) {
-                        addAuthenticationInfoFromConnect(server, serverUrl, credentials).then(() => {
-
-                            afterConnectValidated(server, credentials, systemInfo, connectionMode, serverUrl, true, options, resolve);
-
-                        }, () => {
-
-                            afterConnectValidated(server, credentials, systemInfo, connectionMode, serverUrl, true, options, resolve);
-                        });
-
-                    } else {
-
-                        afterConnectValidated(server, credentials, systemInfo, connectionMode, serverUrl, true, options, resolve);
-                    }
+                    
+                     afterConnectValidated(server, credentials, systemInfo, connectionMode, serverUrl, true, options, resolve);                    
                 });
             }
             else {
