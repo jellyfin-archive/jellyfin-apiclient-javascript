@@ -407,12 +407,6 @@ export default class ConnectionManager {
             });
         }
 
-        function ensureConnectUser(credentials) {
-            if (connectUser && connectUser.Id === credentials.ConnectUserId) {
-                return Promise.resolve();
-            }
-        }
-
         function validateAuthentication(server, serverUrl) {
 
             return ajax({
@@ -498,8 +492,6 @@ export default class ConnectionManager {
             const credentials = credentialProvider.credentials();
 
             if (credentials.ConnectUserId && credentials.ConnectAccessToken && !(apiClient && apiClient.getCurrentUserId())) {
-                ensureConnectUser(credentials).then(onEnsureConnectUserDone, onEnsureConnectUserDone);
-            } else {
                 onEnsureConnectUserDone();
             }
         });
@@ -804,11 +796,6 @@ export default class ConnectionManager {
             options = options || {};
             if (credentials.ConnectAccessToken && options.enableAutoLogin !== false) {
 
-                ensureConnectUser(credentials).then(() => {
-
-                    afterConnectValidated(server, credentials, systemInfo, connectionMode, serverUrl, true, options, resolve);
-                });
-            } else {
                 afterConnectValidated(server, credentials, systemInfo, connectionMode, serverUrl, true, options, resolve);
             }
         }
@@ -978,16 +965,6 @@ export default class ConnectionManager {
             if (!pinInfo) {
                 throw new Error('pinInfo cannot be null');
             }
-
-            return exchangePin(pinInfo).then(result => {
-
-                const credentials = credentialProvider.credentials();
-                credentials.ConnectAccessToken = result.AccessToken;
-                credentials.ConnectUserId = result.UserId;
-                credentialProvider.credentials(credentials);
-
-                return ensureConnectUser(credentials);
-            });
         };
     }
 
