@@ -950,15 +950,6 @@ export default class ConnectionManager {
         }
     }
 
-    isLoggedIntoConnect() {
-
-        // Make sure it returns true or false
-        if (!this.connectToken() || !this.connectUserId()) {
-            return false;
-        }
-        return true;
-    }
-
     getApiClients() {
 
         const servers = this.getSavedServers();
