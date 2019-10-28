@@ -41,7 +41,6 @@ function resolveFailure(instance, resolve) {
 
     resolve({
         State: 'Unavailable',
-        ConnectUser: instance.connectUser()
     });
 }
 
@@ -231,9 +230,6 @@ export default class ConnectionManager {
         const self = this;
         this._apiClients = [];
 
-        let connectUser;
-        self.connectUser = () => connectUser;
-
         self._minServerVersion = '3.2.33';
 
         self.appVersion = () => appVersion;
@@ -245,10 +241,6 @@ export default class ConnectionManager {
         self.deviceId = () => deviceId;
 
         self.credentialProvider = () => credentialProvider;
-
-        self.connectUserId = () => credentialProvider.credentials().ConnectUserId;
-
-        self.connectToken = () => credentialProvider.credentials().ConnectAccessToken;
 
         self.getServerInfo = id => {
 
@@ -304,10 +296,7 @@ export default class ConnectionManager {
 
             console.log('connection manager clearing data');
 
-            connectUser = null;
             const credentials = credentialProvider.credentials();
-            credentials.ConnectAccessToken = null;
-            credentials.ConnectUserId = null;
             credentials.Servers = [];
             credentialProvider.credentials(credentials);
         };
@@ -433,11 +422,6 @@ export default class ConnectionManager {
 
         function getImageUrl(localUser) {
 
-            if (connectUser && connectUser.ImageUrl) {
-                return {
-                    url: connectUser.ImageUrl
-                };
-            }
             if (localUser && localUser.PrimaryImageTag) {
 
                 const apiClient = self.getApiClient(localUser);
@@ -469,10 +453,9 @@ export default class ConnectionManager {
 
                 resolve({
                     localUser,
-                    name: connectUser ? connectUser.Name : (localUser ? localUser.Name : null),
+                    name: (localUser ? localUser.Name : null),
                     imageUrl: image.url,
                     supportsImageParams: image.supportsParams,
-                    connectUser
                 });
             }
 
@@ -491,7 +474,7 @@ export default class ConnectionManager {
 
             const credentials = credentialProvider.credentials();
 
-            if (credentials.ConnectUserId && credentials.ConnectAccessToken && !(apiClient && apiClient.getCurrentUserId())) {
+            if (!(apiClient && apiClient.getCurrentUserId())) {
                 onEnsureConnectUserDone();
             }
         });
@@ -523,17 +506,6 @@ export default class ConnectionManager {
                     server.UserId = null;
                     server.AccessToken = null;
                     server.ExchangeToken = null;
-                }
-
-                credentials.Servers = servers;
-                credentials.ConnectAccessToken = null;
-                credentials.ConnectUserId = null;
-
-                credentialProvider.credentials(credentials);
-
-                if (connectUser) {
-                    connectUser = null;
-                    events.trigger(self, 'connectusersignedout');
                 }
             });
         };
@@ -654,12 +626,6 @@ export default class ConnectionManager {
                     return result;
                 });
             }
-
-            return Promise.resolve({
-                Servers: servers,
-                State: (!servers.length && !self.connectUser()) ? 'ConnectSignIn' : 'ServerSelection',
-                ConnectUser: self.connectUser()
-            });
         };
 
         function getTryConnectPromise(url, connectionMode, state, resolve, reject) {
@@ -794,7 +760,7 @@ export default class ConnectionManager {
 
             const credentials = credentialProvider.credentials();
             options = options || {};
-            if (credentials.ConnectAccessToken && options.enableAutoLogin !== false) {
+            if (options.enableAutoLogin !== false) {
 
                 afterConnectValidated(server, credentials, systemInfo, connectionMode, serverUrl, true, options, resolve);
             }
@@ -883,7 +849,6 @@ export default class ConnectionManager {
                 console.log(`connectToAddress ${address} failed`);
                 return Promise.resolve({
                     State: 'Unavailable',
-                    ConnectUser: instance.connectUser()
                 });
             }
 
