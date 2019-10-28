@@ -44,6 +44,15 @@ function resolveFailure(instance, resolve) {
     });
 }
 
+function mergeServers(credentialProvider, list1, list2) {
+
+    for (let i = 0, length = list2.length; i < length; i++) {
+        credentialProvider.addOrUpdateServer(list1, list2[i]);
+    }
+
+    return list1;
+}
+
 function updateServerInfo(server, systemInfo) {
 
     server.Name = systemInfo.ServerName;
@@ -548,13 +557,11 @@ export default class ConnectionManager {
             return Promise.all([findServers()]).then(responses => {
 
                 const foundServers = responses[0];
-
                 let servers = credentials.Servers.slice(0);
+                mergeServers(credentialProvider, servers, foundServers);
 
                 servers.sort((a, b) => (b.DateLastAccessed || 0) - (a.DateLastAccessed || 0));
-
                 credentials.Servers = servers;
-
                 credentialProvider.credentials(credentials);
 
                 return servers;
@@ -859,7 +866,7 @@ export default class ConnectionManager {
 
             return self.connectToServer(server, options).catch(onFail);
         };
-        
+
         self.deleteServer = serverId => {
 
             if (!serverId) {
