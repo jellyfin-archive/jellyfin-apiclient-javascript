@@ -893,7 +893,34 @@ export default class ConnectionManager {
             };
 
             return self.connectToServer(server, options).catch(onFail);
-        };        
+        };
+        
+        self.deleteServer = serverId => {
+
+            if (!serverId) {
+                throw new Error("null serverId");
+            }
+
+            let server = credentialProvider.credentials().Servers.filter(s => s.Id === serverId);
+            server = server.length ? server[0] : null;
+
+            return new Promise((resolve, reject) => {
+
+                function onDone() {
+                    const credentials = credentialProvider.credentials();
+
+                    credentials.Servers = credentials.Servers.filter(s => s.Id !== serverId);
+
+                    credentialProvider.credentials(credentials);
+                    resolve();
+                }
+
+                if (!server.ConnectServerId) {
+                    onDone();
+                    return;
+                }
+            });
+        };
     }
 
     connect(options) {
