@@ -458,33 +458,22 @@ export default class ConnectionManager {
 
             function onLocalUserDone(e) {
 
-                const image = getImageUrl(localUser);
-
-                resolve({
-                    localUser,
-                    name: (localUser ? localUser.Name : null),
-                    imageUrl: image.url,
-                    supportsImageParams: image.supportsParams,
-                });
-            }
-
-            function onEnsureConnectUserDone() {
-
                 if (apiClient && apiClient.getCurrentUserId()) {
                     apiClient.getCurrentUser().then(u => {
                         localUser = u;
-                        onLocalUserDone();
+                        const image = getImageUrl(localUser);
 
+                        resolve({
+                            localUser,
+                            name: (localUser ? localUser.Name : null),
+                            imageUrl: image.url,
+                            supportsImageParams: image.supportsParams,
+                        });
                     }, onLocalUserDone);
-                } else {
-                    onLocalUserDone();
                 }
             }
-
-            const credentials = credentialProvider.credentials();
-
             if (!(apiClient && apiClient.getCurrentUserId())) {
-                onEnsureConnectUserDone();
+                onLocalUserDone();
             }
         });
 
