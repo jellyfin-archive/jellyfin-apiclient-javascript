@@ -756,10 +756,8 @@ export default class ConnectionManager {
 
             const credentials = credentialProvider.credentials();
             options = options || {};
-            if (options.enableAutoLogin !== false) {
 
-                afterConnectValidated(server, credentials, systemInfo, connectionMode, serverUrl, true, options, resolve);
-            }
+            afterConnectValidated(server, credentials, systemInfo, connectionMode, serverUrl, true, options, resolve);
         }
 
         function afterConnectValidated(
