@@ -40,7 +40,7 @@ function paramsToString(params) {
 function resolveFailure(instance, resolve) {
 
     resolve({
-        State: 'Unavailable',
+        State: 'Unavailable'
     });
 }
 
@@ -842,7 +842,7 @@ export default class ConnectionManager {
             function onFail() {
                 console.log(`connectToAddress ${address} failed`);
                 return Promise.resolve({
-                    State: 'Unavailable',
+                    State: 'Unavailable'
                 });
             }
 
@@ -901,7 +901,9 @@ export default class ConnectionManager {
                 if (typeof (msg.Data) === 'string') {
                     try {
                         msg.Data = JSON.parse(msg.Data);
-                    } catch (err) {}
+                    } catch (err) {
+                        console.log("unable to parse json content:" + err);
+                    }
                 }
 
                 apiClient.handleMessageReceived(msg);
