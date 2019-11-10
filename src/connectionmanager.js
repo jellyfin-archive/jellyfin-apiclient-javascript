@@ -622,6 +622,11 @@ export default class ConnectionManager {
                     return result;
                 });
             }
+
+            return Promise.resolve({
+                Servers: servers,
+                State: "ServerSelection"
+            });
         };
 
         function getTryConnectPromise(url, connectionMode, state, resolve, reject) {
