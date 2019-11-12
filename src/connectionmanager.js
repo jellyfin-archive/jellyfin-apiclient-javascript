@@ -469,9 +469,10 @@ export default class ConnectionManager {
                             imageUrl: image.url,
                             supportsImageParams: image.supportsParams,
                         });
-                    }, onLocalUserDone);
+                    });
                 }
             }
+
             if (!(apiClient && apiClient.getCurrentUserId())) {
                 onLocalUserDone();
             }
@@ -757,23 +758,10 @@ export default class ConnectionManager {
             });
         };
 
-        function onSuccessfulConnection(server, systemInfo, connectionMode, serverUrl, options, resolve) {
+        function onSuccessfulConnection(server, systemInfo, connectionMode, serverUrl, verifyLocalAuthentication, options, resolve) {
 
             const credentials = credentialProvider.credentials();
             options = options || {};
-
-            afterConnectValidated(server, credentials, systemInfo, connectionMode, serverUrl, true, options, resolve);
-        }
-
-        function afterConnectValidated(
-            server,
-            credentials,
-            systemInfo,
-            connectionMode,
-            serverUrl,
-            verifyLocalAuthentication,
-            options = {},
-            resolve) {
             if (options.enableAutoLogin === false) {
 
                 server.UserId = null;
@@ -783,7 +771,7 @@ export default class ConnectionManager {
 
                 validateAuthentication(server, serverUrl).then(() => {
 
-                    afterConnectValidated(server, credentials, systemInfo, connectionMode, serverUrl, false, options, resolve);
+                    onSuccessfulConnection(server, credentials, systemInfo, connectionMode, serverUrl, false, options, resolve);
                 });
 
                 return;
@@ -907,7 +895,7 @@ export default class ConnectionManager {
                     try {
                         msg.Data = JSON.parse(msg.Data);
                     } catch (err) {
-                        console.log("unable to parse json content:" + err);
+                        console.log("unable to parse json content: " + err);
                     }
                 }
 
