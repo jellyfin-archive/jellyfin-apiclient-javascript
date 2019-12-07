@@ -637,3 +637,4 @@ healthchecksdb
 
 # Custom
 dist/
+docs/
