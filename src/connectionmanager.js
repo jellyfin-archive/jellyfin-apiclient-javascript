@@ -69,7 +69,7 @@ function updateServerInfo(server, systemInfo) {
 }
 
 function getEmbyServerUrl(baseUrl, handler) {
-    return `${baseUrl}/emby/${handler}`;
+    return `${baseUrl}/jellyfin/${handler}`;
 }
 
 function getFetchPromise(request) {

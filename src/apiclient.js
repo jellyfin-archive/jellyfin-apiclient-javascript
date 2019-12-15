@@ -247,8 +247,8 @@ class ApiClient {
             throw new Error("serverAddress is yet not set");
         }
         const lowered = url.toLowerCase();
-        if (!lowered.includes('/emby') && !lowered.includes('/mediabrowser')) {
-            url += '/emby';
+        if (!lowered.includes('/jellyfin') && !lowered.includes('/mediabrowser')) {
+            url += '/jellyfin';
         }
 
         if (name.charAt(0) !== '/') {
