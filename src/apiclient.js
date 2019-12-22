@@ -2079,7 +2079,7 @@ class ApiClient {
             throw new Error("File must be an image.");
         }
 
-        if (file.type !== "image/png" && file.type !== "image/jpeg" && file.type !== "image/jpeg") {
+        if (file.type !== "image/png" && file.type !== "image/jpeg" && file.type !== "image/jpeg" && file.type !== "image/webp") {
             throw new Error("File must be an image.");
         }
 
@@ -2132,7 +2132,7 @@ class ApiClient {
             throw new Error("File must be an image.");
         }
 
-        if (file.type !== "image/png" && file.type !== "image/jpeg" && file.type !== "image/jpeg") {
+        if (file.type !== "image/png" && file.type !== "image/jpeg" && file.type !== "image/jpeg" && file.type !== "image/webp") {
             throw new Error("File must be an image.");
         }
 
