@@ -1,10 +1,10 @@
-﻿import ServerSync from 'sync/serversync';
+import ServerSync from "sync/serversync";
 
 function syncNext(connectionManager, servers, index, options, resolve, reject) {
     const length = servers.length;
 
     if (index >= length) {
-        console.log('MultiServerSync.sync complete');
+        console.log("MultiServerSync.sync complete");
         resolve();
         return;
     }
@@ -28,8 +28,8 @@ function syncNext(connectionManager, servers, index, options, resolve, reject) {
 }
 
 export default class MultiServerSync {
-    sync(connectionManager, options) {
-        console.log('MultiServerSync.sync starting...');
+    public sync(connectionManager, options) {
+        console.log("MultiServerSync.sync starting...");
 
         return new Promise((resolve, reject) => {
             const servers = connectionManager.getSavedServers();

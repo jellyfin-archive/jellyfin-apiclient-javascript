@@ -1,11 +1,11 @@
-﻿import filerepository from 'sync/filerepository';
-import itemrepository from 'sync/itemrepository';
-import useractionrepository from 'sync/useractionrepository';
-import transfermanager from 'sync/transfermanager';
+import filerepository from "src/sync/filerepository";
+import itemrepository from "src/sync/itemrepository";
+import transfermanager from "src/sync/transfermanager";
+import useractionrepository from "src/sync/useractionrepository";
 
 function getLocalItem(serverId, itemId) {
 
-    console.log('[lcoalassetmanager] Begin getLocalItem');
+    console.log("[lcoalassetmanager] Begin getLocalItem");
 
     return itemrepository.get(serverId, itemId);
 }
@@ -36,7 +36,7 @@ function deleteUserActions(actions) {
 
 function getServerItems(serverId) {
 
-    console.log('[localassetmanager] Begin getServerItems');
+    console.log("[localassetmanager] Begin getServerItems");
 
     return itemrepository.getAll(serverId);
 }
@@ -44,7 +44,7 @@ function getServerItems(serverId) {
 function getItemsFromIds(serverId, ids) {
 
     const actions = ids.map(id => {
-        const strippedId = stripStart(id, 'local:');
+        const strippedId = stripStart(id, "local:");
 
         return getLocalItem(serverId, strippedId);
     });
@@ -65,84 +65,84 @@ function getViews(serverId, userId) {
         const list = [];
         let item;
 
-        if (types.includes('Audio')) {
+        if (types.includes("Audio")) {
 
             item = {
-                Name: 'Music',
+                Name: "Music",
                 ServerId: serverId,
-                Id: 'localview:MusicView',
-                Type: 'MusicView',
-                CollectionType: 'music',
+                Id: "localview:MusicView",
+                Type: "MusicView",
+                CollectionType: "music",
                 IsFolder: true
             };
 
             list.push(item);
         }
 
-        if (types.includes('Photo')) {
+        if (types.includes("Photo")) {
 
             item = {
-                Name: 'Photos',
+                Name: "Photos",
                 ServerId: serverId,
-                Id: 'localview:PhotosView',
-                Type: 'PhotosView',
-                CollectionType: 'photos',
+                Id: "localview:PhotosView",
+                Type: "PhotosView",
+                CollectionType: "photos",
                 IsFolder: true
             };
 
             list.push(item);
         }
 
-        if (types.includes('Episode')) {
+        if (types.includes("Episode")) {
 
             item = {
-                Name: 'TV',
+                Name: "TV",
                 ServerId: serverId,
-                Id: 'localview:TVView',
-                Type: 'TVView',
-                CollectionType: 'tvshows',
+                Id: "localview:TVView",
+                Type: "TVView",
+                CollectionType: "tvshows",
                 IsFolder: true
             };
 
             list.push(item);
         }
 
-        if (types.includes('Movie')) {
+        if (types.includes("Movie")) {
 
             item = {
-                Name: 'Movies',
+                Name: "Movies",
                 ServerId: serverId,
-                Id: 'localview:MoviesView',
-                Type: 'MoviesView',
-                CollectionType: 'movies',
+                Id: "localview:MoviesView",
+                Type: "MoviesView",
+                CollectionType: "movies",
                 IsFolder: true
             };
 
             list.push(item);
         }
 
-        if (types.includes('Video')) {
+        if (types.includes("Video")) {
 
             item = {
-                Name: 'Videos',
+                Name: "Videos",
                 ServerId: serverId,
-                Id: 'localview:VideosView',
-                Type: 'VideosView',
-                CollectionType: 'videos',
+                Id: "localview:VideosView",
+                Type: "VideosView",
+                CollectionType: "videos",
                 IsFolder: true
             };
 
             list.push(item);
         }
 
-        if (types.includes('MusicVideo')) {
+        if (types.includes("MusicVideo")) {
 
             item = {
-                Name: 'Music Videos',
+                Name: "Music Videos",
                 ServerId: serverId,
-                Id: 'localview:MusicVideosView',
-                Type: 'MusicVideosView',
-                CollectionType: 'videos',
+                Id: "localview:MusicVideosView",
+                Type: "MusicVideosView",
+                CollectionType: "videos",
                 IsFolder: true
             };
 
@@ -156,46 +156,46 @@ function getViews(serverId, userId) {
 function updateFiltersForTopLevelView(parentId, mediaTypes, includeItemTypes, query) {
 
     switch (parentId) {
-        case 'MusicView':
+        case "MusicView":
             if (query.Recursive) {
-                includeItemTypes.push('Audio');
+                includeItemTypes.push("Audio");
             } else {
-                includeItemTypes.push('MusicAlbum');
+                includeItemTypes.push("MusicAlbum");
             }
             return true;
-        case 'PhotosView':
+        case "PhotosView":
             if (query.Recursive) {
-                includeItemTypes.push('Photo');
+                includeItemTypes.push("Photo");
             } else {
-                includeItemTypes.push('PhotoAlbum');
+                includeItemTypes.push("PhotoAlbum");
             }
             return true;
-        case 'TVView':
+        case "TVView":
             if (query.Recursive) {
-                includeItemTypes.push('Episode');
+                includeItemTypes.push("Episode");
             } else {
-                includeItemTypes.push('Series');
+                includeItemTypes.push("Series");
             }
             return true;
-        case 'VideosView':
+        case "VideosView":
             if (query.Recursive) {
-                includeItemTypes.push('Video');
+                includeItemTypes.push("Video");
             } else {
-                includeItemTypes.push('Video');
+                includeItemTypes.push("Video");
             }
             return true;
-        case 'MoviesView':
+        case "MoviesView":
             if (query.Recursive) {
-                includeItemTypes.push('Movie');
+                includeItemTypes.push("Movie");
             } else {
-                includeItemTypes.push('Movie');
+                includeItemTypes.push("Movie");
             }
             return true;
-        case 'MusicVideosView':
+        case "MusicVideosView":
             if (query.Recursive) {
-                includeItemTypes.push('MusicVideo');
+                includeItemTypes.push("MusicVideo");
             } else {
-                includeItemTypes.push('MusicVideo');
+                includeItemTypes.push("MusicVideo");
             }
             return true;
     }
@@ -206,8 +206,8 @@ function updateFiltersForTopLevelView(parentId, mediaTypes, includeItemTypes, qu
 function normalizeId(id) {
 
     if (id) {
-        id = stripStart(id, 'localview:');
-        id = stripStart(id, 'local:');
+        id = stripStart(id, "localview:");
+        id = stripStart(id, "local:");
         return id;
     }
 
@@ -217,7 +217,7 @@ function normalizeId(id) {
 function normalizeIdList(val) {
 
     if (val) {
-        return val.split(',').map(normalizeId);
+        return val.split(",").map(normalizeId);
     }
 
     return [];
@@ -246,12 +246,12 @@ function shuffle(array) {
 
 function sortItems(items, query) {
 
-    const sortBy = (query.sortBy || '').split(',')[0];
+    const sortBy = (query.sortBy || "").split(",")[0];
 
-    if (sortBy === 'DateCreated') {
+    if (sortBy === "DateCreated") {
         items.sort((a, b) => compareDates(a.DateCreated, b.DateCreated));
     }
-    else if (sortBy === 'Random') {
+    else if (sortBy === "Random") {
         items = shuffle(items);
     } else {
         items.sort((a, b) => a.SortName.toLowerCase().localeCompare(b.SortName.toLowerCase()));
@@ -269,9 +269,9 @@ function getViewItems(serverId, userId, options) {
     const seriesId = normalizeId(options.SeriesId || options.seriesId);
     const albumIds = normalizeIdList(options.AlbumIds || options.albumIds);
 
-    const includeItemTypes = options.IncludeItemTypes ? options.IncludeItemTypes.split(',') : [];
-    const filters = options.Filters ? options.Filters.split(',') : [];
-    const mediaTypes = options.MediaTypes ? options.MediaTypes.split(',') : [];
+    const includeItemTypes = options.IncludeItemTypes ? options.IncludeItemTypes.split(",") : [];
+    const filters = options.Filters ? options.Filters.split(",") : [];
+    const mediaTypes = options.MediaTypes ? options.MediaTypes.split(",") : [];
 
     if (updateFiltersForTopLevelView(parentId, mediaTypes, includeItemTypes, options)) {
         parentId = null;
@@ -279,16 +279,16 @@ function getViewItems(serverId, userId, options) {
 
     return getServerItems(serverId).then(items => {
 
-        //debugPrintItems(items);
+        // debugPrintItems(items);
 
         let resultItems = items.filter(item => {
 
-            if (item.SyncStatus && item.SyncStatus !== 'synced') {
+            if (item.SyncStatus && item.SyncStatus !== "synced") {
                 return false;
             }
 
             if (mediaTypes.length) {
-                if (!mediaTypes.includes(item.Item.MediaType || '')) {
+                if (!mediaTypes.includes(item.Item.MediaType || "")) {
                     return false;
                 }
             }
@@ -301,18 +301,18 @@ function getViewItems(serverId, userId, options) {
                 return false;
             }
 
-            if (albumIds.length && !albumIds.includes(item.Item.AlbumId || '')) {
+            if (albumIds.length && !albumIds.includes(item.Item.AlbumId || "")) {
                 return false;
             }
 
-            if (item.Item.IsFolder && filters.includes('IsNotFolder')) {
+            if (item.Item.IsFolder && filters.includes("IsNotFolder")) {
                 return false;
-            } else if (!item.Item.IsFolder && filters.includes('IsFolder')) {
+            } else if (!item.Item.IsFolder && filters.includes("IsFolder")) {
                 return false;
             }
 
             if (includeItemTypes.length) {
-                if (!includeItemTypes.includes(item.Item.Type || '')) {
+                if (!includeItemTypes.includes(item.Item.Type || "")) {
                     return false;
                 }
             }
@@ -345,39 +345,39 @@ function removeObsoleteContainerItems(serverId) {
 
         const seriesItems = items.filter(item => {
 
-            const type = (item.Item.Type || '').toLowerCase();
-            return type === 'series';
+            const type = (item.Item.Type || "").toLowerCase();
+            return type === "series";
         });
 
 
         const seasonItems = items.filter(item => {
 
-            const type = (item.Item.Type || '').toLowerCase();
-            return type === 'season';
+            const type = (item.Item.Type || "").toLowerCase();
+            return type === "season";
         });
 
         const albumItems = items.filter(item => {
 
-            const type = (item.Item.Type || '').toLowerCase();
-            return type === 'musicalbum' || type === 'photoalbum';
+            const type = (item.Item.Type || "").toLowerCase();
+            return type === "musicalbum" || type === "photoalbum";
         });
 
         const requiredSeriesIds = items.filter(item => {
 
-            const type = (item.Item.Type || '').toLowerCase();
-            return type === 'episode';
+            const type = (item.Item.Type || "").toLowerCase();
+            return type === "episode";
         }).map(item2 => item2.Item.SeriesId).filter(filterDistinct);
 
         const requiredSeasonIds = items.filter(item => {
 
-            const type = (item.Item.Type || '').toLowerCase();
-            return type === 'episode';
+            const type = (item.Item.Type || "").toLowerCase();
+            return type === "episode";
         }).map(item2 => item2.Item.SeasonId).filter(filterDistinct);
 
         const requiredAlbumIds = items.filter(item => {
 
-            const type = (item.Item.Type || '').toLowerCase();
-            return type === 'audio' || type === 'photo';
+            const type = (item.Item.Type || "").toLowerCase();
+            return type === "audio" || type === "photo";
         }).map(item2 => item2.Item.AlbumId).filter(filterDistinct);
 
         const obsoleteItems = [];
@@ -474,7 +474,7 @@ function getNameWithoutExtension(path) {
 function downloadFile(url, localItem) {
 
     const imageUrl = getImageUrl(localItem.Item.ServerId, localItem.Item.Id, {
-        type: 'Primary',
+        type: "Primary",
         index: 0
     });
     return transfermanager.downloadFile(url, localItem, imageUrl);
@@ -501,12 +501,12 @@ function hasImage(serverId, itemId, imageType, index) {
     const localFilePath = filerepository.getFullMetadataPath(pathArray);
 
     return filerepository.fileExists(localFilePath).then(exists => // TODO: Maybe check for broken download when file size is 0 and item is not queued
-        ////if (exists) {
+        //// if (exists) {
         ////    if (!transfermanager.isDownloadFileInQueue(localFilePath)) {
         ////        // If file exists but 
         ////        exists = false;
         ////    }
-        ////}
+        //// }
 
         Promise.resolve(exists), err => Promise.resolve(false));
 }
@@ -539,21 +539,21 @@ function getDirectoryPath(item) {
     const parts = [];
 
     const itemtype = item.Type.toLowerCase();
-    const mediaType = (item.MediaType || '').toLowerCase();
+    const mediaType = (item.MediaType || "").toLowerCase();
 
-    if (itemtype === 'episode' || itemtype === 'series' || itemtype === 'season') {
+    if (itemtype === "episode" || itemtype === "series" || itemtype === "season") {
 
         parts.push("TV");
 
-    } else if (mediaType === 'video') {
+    } else if (mediaType === "video") {
 
         parts.push("Videos");
 
-    } else if (itemtype === 'audio' || itemtype === 'musicalbum' || itemtype === 'musicartist') {
+    } else if (itemtype === "audio" || itemtype === "musicalbum" || itemtype === "musicartist") {
 
         parts.push("Music");
 
-    } else if (itemtype === 'photo' || itemtype === 'photoalbum') {
+    } else if (itemtype === "photo" || itemtype === "photoalbum") {
 
         parts.push("Photos");
 
@@ -578,7 +578,7 @@ function getDirectoryPath(item) {
         parts.push(item.Album);
     }
 
-    if ((mediaType === 'video' && itemtype !== 'episode') || item.IsFolder) {
+    if ((mediaType === "video" && itemtype !== "episode") || item.IsFolder) {
 
         parts.push(item.Name);
     }
@@ -595,7 +595,7 @@ function getDirectoryPath(item) {
 function getImagePath(serverId, itemId, imageType, index) {
 
     const parts = [];
-    parts.push('images');
+    parts.push("images");
 
     index = index || 0;
     // Store without extension. This allows mixed image types since the browser will
@@ -625,12 +625,12 @@ function resyncTransfers() {
 function createGuid() {
     let d = new Date().getTime();
     if (window.performance && typeof window.performance.now === "function") {
-        d += performance.now(); //use high-precision timer if available
+        d += performance.now(); // use high-precision timer if available
     }
-    const uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const uuid = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
         const r = (d + Math.random() * 16) % 16 | 0;
         d = Math.floor(d / 16);
-        return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+        return (c === "x" ? r : (r & 0x3 | 0x8)).toString(16);
     });
     return uuid;
 }

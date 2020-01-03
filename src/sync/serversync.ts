@@ -1,5 +1,5 @@
-﻿import MediaSync from 'sync/mediasync';
-import localAssetManager from 'localassetmanager';
+import localAssetManager from "./localassetmanager";
+import MediaSync from "./sync/mediasync";
 
 function performSync(connectionManager, server, options) {
 
@@ -20,7 +20,7 @@ function syncMedia(connectionManager, server, options) {
 }
 
 export default class ServerSync {
-    sync(connectionManager, server, options) {
+    public sync(connectionManager, server, options) {
 
         if (!server.AccessToken && !server.ExchangeToken) {
 
@@ -37,7 +37,7 @@ export default class ServerSync {
 
         return connectionManager.connectToServer(server, connectionOptions).then(result => {
 
-            if (result.State === 'SignedIn') {
+            if (result.State === "SignedIn") {
                 return performSync(connectionManager, server, options);
             } else {
                 console.log(`Unable to connect to server id: ${server.Id}`);

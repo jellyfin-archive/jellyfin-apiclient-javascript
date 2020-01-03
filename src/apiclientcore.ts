@@ -1,7 +1,7 @@
-﻿import ApiClient from 'apiclient';
+import ApiClient from "./apiclient";
 
-const localPrefix = 'local:';
-const localViewPrefix = 'localview:';
+const localPrefix = "local:";
+const localViewPrefix = "localview:";
 
 function isLocalId(str) {
     return startsWith(str, localPrefix);
@@ -12,7 +12,7 @@ function isLocalViewId(str) {
 }
 
 function isTopLevelLocalViewId(str) {
-    return str === 'localview';
+    return str === "localview";
 }
 
 function stripLocalPrefix(str) {
@@ -89,10 +89,10 @@ function getLocalView(instance, serverId, userId) {
         if (views.length > 0) {
 
             localView = {
-                Name: instance.downloadsTitleText || 'Downloads',
+                Name: instance.downloadsTitleText || "Downloads",
                 ServerId: serverId,
-                Id: 'localview',
-                Type: 'localview',
+                Id: "localview",
+                Type: "localview",
                 IsFolder: true
             };
         }
@@ -122,7 +122,7 @@ class ApiClientEx extends ApiClient {
         this.localAssetManager = localAssetManager;
     }
 
-    getPlaybackInfo(itemId, options, deviceProfile) {
+    public getPlaybackInfo(itemId, options, deviceProfile) {
 
         const onFailure = () => ApiClient.prototype.getPlaybackInfo.call(instance, itemId, options, deviceProfile);
 
@@ -145,7 +145,7 @@ class ApiClientEx extends ApiClient {
             }, onFailure);
         }
 
-        var instance = this;
+        const instance = this;
         return this.localAssetManager.getLocalItem(this.serverId(), itemId).then(item => {
 
             if (item) {
@@ -179,12 +179,12 @@ class ApiClientEx extends ApiClient {
         }, onFailure);
     }
 
-    getItems(userId, options) {
+    public getItems(userId, options) {
 
         const serverInfo = this.serverInfo();
         let i;
 
-        if (serverInfo && options.ParentId === 'localview') {
+        if (serverInfo && options.ParentId === "localview") {
 
             return this.getLocalFolders(serverInfo.Id, userId).then(items => {
                 const result = {
@@ -212,7 +212,7 @@ class ApiClientEx extends ApiClient {
             });
         } else if (options && options.ExcludeItemIds && options.ExcludeItemIds.length) {
 
-            const exItems = options.ExcludeItemIds.split(',');
+            const exItems = options.ExcludeItemIds.split(",");
 
             for (i = 0; i < exItems.length; i++) {
                 if (isLocalId(exItems[i])) {
@@ -221,7 +221,7 @@ class ApiClientEx extends ApiClient {
             }
         } else if (options && options.Ids && options.Ids.length) {
 
-            const ids = options.Ids.split(',');
+            const ids = options.Ids.split(",");
             let hasLocal = false;
 
             for (i = 0; i < ids.length; i++) {
@@ -250,7 +250,7 @@ class ApiClientEx extends ApiClient {
         return ApiClient.prototype.getItems.call(this, userId, options);
     }
 
-    getUserViews(options, userId) {
+    public getUserViews(options, userId) {
 
         const instance = this;
 
@@ -283,7 +283,7 @@ class ApiClientEx extends ApiClient {
         });
     }
 
-    getItem(userId, itemId) {
+    public getItem(userId, itemId) {
 
         if (!itemId) {
             throw new Error("null itemId");
@@ -340,7 +340,7 @@ class ApiClientEx extends ApiClient {
         return ApiClient.prototype.getItem.call(this, userId, itemId);
     }
 
-    getLocalFolders(userId) {
+    public getLocalFolders(userId) {
 
         const serverInfo = this.serverInfo();
         userId = userId || serverInfo.UserId;
@@ -348,7 +348,7 @@ class ApiClientEx extends ApiClient {
         return this.localAssetManager.getViews(serverInfo.Id, userId);
     }
 
-    getNextUpEpisodes(options) {
+    public getNextUpEpisodes(options) {
 
         if (options.SeriesId) {
             if (isLocalId(options.SeriesId)) {
@@ -359,44 +359,44 @@ class ApiClientEx extends ApiClient {
         return ApiClient.prototype.getNextUpEpisodes.call(this, options);
     }
 
-    getSeasons(itemId, options) {
+    public getSeasons(itemId, options) {
 
         if (isLocalId(itemId)) {
             options.SeriesId = itemId;
-            options.IncludeItemTypes = 'Season';
+            options.IncludeItemTypes = "Season";
             return this.getItems(this.getCurrentUserId(), options);
         }
 
         return ApiClient.prototype.getSeasons.call(this, itemId, options);
     }
 
-    getEpisodes(itemId, options) {
+    public getEpisodes(itemId, options) {
 
         if (isLocalId(options.SeasonId) || isLocalId(options.seasonId)) {
             options.SeriesId = itemId;
-            options.IncludeItemTypes = 'Episode';
+            options.IncludeItemTypes = "Episode";
             return this.getItems(this.getCurrentUserId(), options);
         }
 
         // get episodes by recursion
         if (isLocalId(itemId)) {
             options.SeriesId = itemId;
-            options.IncludeItemTypes = 'Episode';
+            options.IncludeItemTypes = "Episode";
             return this.getItems(this.getCurrentUserId(), options);
         }
 
         return ApiClient.prototype.getEpisodes.call(this, itemId, options);
     }
 
-    getLatestOfflineItems(options) {
+    public getLatestOfflineItems(options) {
 
         // Supported options
         // MediaType - Audio/Video/Photo/Book/Game
         // Limit
         // Filters: 'IsNotFolder' or 'IsFolder'
 
-        options.SortBy = 'DateCreated';
-        options.SortOrder = 'Descending';
+        options.SortBy = "DateCreated";
+        options.SortOrder = "Descending";
 
         const serverInfo = this.serverInfo();
 
@@ -415,7 +415,7 @@ class ApiClientEx extends ApiClient {
         return Promise.resolve([]);
     }
 
-    getThemeMedia(userId, itemId, inherit) {
+    public getThemeMedia(userId, itemId, inherit) {
 
         if (isLocalViewId(itemId) || isLocalId(itemId) || isTopLevelLocalViewId(itemId)) {
             return Promise.reject();
@@ -424,7 +424,7 @@ class ApiClientEx extends ApiClient {
         return ApiClient.prototype.getThemeMedia.call(this, userId, itemId, inherit);
     }
 
-    getSpecialFeatures(userId, itemId) {
+    public getSpecialFeatures(userId, itemId) {
 
         if (isLocalId(itemId)) {
             return Promise.resolve([]);
@@ -433,7 +433,7 @@ class ApiClientEx extends ApiClient {
         return ApiClient.prototype.getSpecialFeatures.call(this, userId, itemId);
     }
 
-    getSimilarItems(itemId, options) {
+    public getSimilarItems(itemId, options) {
 
         if (isLocalId(itemId)) {
             return Promise.resolve(createEmptyList());
@@ -442,7 +442,7 @@ class ApiClientEx extends ApiClient {
         return ApiClient.prototype.getSimilarItems.call(this, itemId, options);
     }
 
-    updateFavoriteStatus(userId, itemId, isFavorite) {
+    public updateFavoriteStatus(userId, itemId, isFavorite) {
 
         if (isLocalId(itemId)) {
             return Promise.resolve();
@@ -451,7 +451,7 @@ class ApiClientEx extends ApiClient {
         return ApiClient.prototype.updateFavoriteStatus.call(this, userId, itemId, isFavorite);
     }
 
-    getScaledImageUrl(itemId, options) {
+    public getScaledImageUrl(itemId, options) {
 
         if (isLocalId(itemId) || (options && options.itemid && isLocalId(options.itemid))) {
 
@@ -464,7 +464,7 @@ class ApiClientEx extends ApiClient {
         return ApiClient.prototype.getScaledImageUrl.call(this, itemId, options);
     }
 
-    reportPlaybackStart(options) {
+    public reportPlaybackStart(options) {
 
         if (!options) {
             throw new Error("null options");
@@ -477,7 +477,7 @@ class ApiClientEx extends ApiClient {
         return ApiClient.prototype.reportPlaybackStart.call(this, options);
     }
 
-    reportPlaybackProgress(options) {
+    public reportPlaybackProgress(options) {
 
         if (!options) {
             throw new Error("null options");
@@ -493,7 +493,7 @@ class ApiClientEx extends ApiClient {
 
                     const libraryItem = item.Item;
 
-                    if (libraryItem.MediaType === 'Video' || libraryItem.Type === 'AudioBook') {
+                    if (libraryItem.MediaType === "Video" || libraryItem.Type === "AudioBook") {
                         libraryItem.UserData = libraryItem.UserData || {};
                         libraryItem.UserData.PlaybackPositionTicks = options.PositionTicks;
                         libraryItem.UserData.PlayedPercentage = Math.min(libraryItem.RunTimeTicks ? (100 * ((options.PositionTicks || 0) / libraryItem.RunTimeTicks)) : 0, 100);
@@ -510,7 +510,7 @@ class ApiClientEx extends ApiClient {
         return ApiClient.prototype.reportPlaybackProgress.call(this, options);
     }
 
-    reportPlaybackStopped(options) {
+    public reportPlaybackStopped(options) {
 
         if (!options) {
             throw new Error("null options");
@@ -536,7 +536,7 @@ class ApiClientEx extends ApiClient {
         return ApiClient.prototype.reportPlaybackStopped.call(this, options);
     }
 
-    getIntros(itemId) {
+    public getIntros(itemId) {
 
         if (isLocalId(itemId)) {
             return Promise.resolve({
@@ -548,7 +548,7 @@ class ApiClientEx extends ApiClient {
         return ApiClient.prototype.getIntros.call(this, itemId);
     }
 
-    getInstantMixFromItem(itemId, options) {
+    public getInstantMixFromItem(itemId, options) {
 
         if (isLocalId(itemId)) {
             return Promise.resolve({
@@ -560,7 +560,7 @@ class ApiClientEx extends ApiClient {
         return ApiClient.prototype.getInstantMixFromItem.call(this, itemId, options);
     }
 
-    getItemDownloadUrl(itemId) {
+    public getItemDownloadUrl(itemId) {
 
         if (isLocalId(itemId)) {
 

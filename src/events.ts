@@ -35,16 +35,15 @@ export default {
         }
     },
 
-    trigger(obj, eventName) {
+    trigger(obj: any, eventName: string, ...additionalArgs: any[]) {
 
         const eventObject = {
             type: eventName
         };
 
-        const eventArgs = [];
+        const eventArgs: any[] = [];
         eventArgs.push(eventObject);
 
-        const additionalArgs = arguments[2] || [];
         for (let i = 0, length = additionalArgs.length; i < length; i++) {
             eventArgs.push(additionalArgs[i]);
         }

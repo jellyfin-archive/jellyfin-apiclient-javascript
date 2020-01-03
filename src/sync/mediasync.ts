@@ -1,24 +1,24 @@
-﻿function processDownloadStatus(apiClient, serverInfo, options) {
+function processDownloadStatus(apiClient, serverInfo, options) {
 
-    console.log('[mediasync] Begin processDownloadStatus');
+    console.log("[mediasync] Begin processDownloadStatus");
 
     return localassetmanager.resyncTransfers().then(() => localassetmanager.getServerItems(serverInfo.Id).then(items => {
 
-        console.log('[mediasync] Begin processDownloadStatus getServerItems completed');
+        console.log("[mediasync] Begin processDownloadStatus getServerItems completed");
 
         let p = Promise.resolve();
         let cnt = 0;
 
         // Debugging only
-        //items.forEach(function (item) {
+        // items.forEach(function (item) {
         //    p = p.then(function () {
         //        return localassetmanager.removeLocalItem(item);
         //    });
-        //});
+        // });
 
-        //return Promise.resolve();
+        // return Promise.resolve();
 
-        const progressItems = items.filter(item => item.SyncStatus === 'transferring' || item.SyncStatus === 'queued');
+        const progressItems = items.filter(item => item.SyncStatus === "transferring" || item.SyncStatus === "queued");
 
         progressItems.forEach(item => {
             p = p.then(() => reportTransfer(apiClient, item));
@@ -39,11 +39,11 @@ function reportTransfer(apiClient, item) {
         // has been downloaded completely
         if (size > 0) {
             return apiClient.reportSyncJobItemTransferred(item.SyncJobItemId).then(() => {
-                item.SyncStatus = 'synced';
+                item.SyncStatus = "synced";
                 return localassetmanager.addOrUpdateLocalItem(item);
             }, error => {
-                console.error('[mediasync] Mediasync error on reportSyncJobItemTransferred', error);
-                item.SyncStatus = 'error';
+                console.error("[mediasync] Mediasync error on reportSyncJobItemTransferred", error);
+                item.SyncStatus = "error";
                 return localassetmanager.addOrUpdateLocalItem(item);
             });
         } else {
@@ -53,12 +53,12 @@ function reportTransfer(apiClient, item) {
                     return Promise.resolve();
                 }
 
-                console.log('[mediasync] reportTransfer: Size is 0 and download no longer in queue. Deleting item.');
+                console.log("[mediasync] reportTransfer: Size is 0 and download no longer in queue. Deleting item.");
                 return localassetmanager.removeLocalItem(item).then(() => {
-                    console.log('[mediasync] reportTransfer: Item deleted.');
+                    console.log("[mediasync] reportTransfer: Item deleted.");
                     return Promise.resolve();
                 }, err2 => {
-                    console.log('[mediasync] reportTransfer: Failed to delete item.', err2);
+                    console.log("[mediasync] reportTransfer: Failed to delete item.", err2);
                     return Promise.resolve();
                 });
             });
@@ -66,12 +66,12 @@ function reportTransfer(apiClient, item) {
 
     }, error => {
 
-        console.error('[mediasync] reportTransfer: error on getItemFileSize. Deleting item.', error);
+        console.error("[mediasync] reportTransfer: error on getItemFileSize. Deleting item.", error);
         return localassetmanager.removeLocalItem(item).then(() => {
-            console.log('[mediasync] reportTransfer: Item deleted.');
+            console.log("[mediasync] reportTransfer: Item deleted.");
             return Promise.resolve();
         }, err2 => {
-            console.log('[mediasync] reportTransfer: Failed to delete item.', err2);
+            console.log("[mediasync] reportTransfer: Failed to delete item.", err2);
             return Promise.resolve();
         });
     });
@@ -79,17 +79,17 @@ function reportTransfer(apiClient, item) {
 
 function reportOfflineActions(apiClient, serverInfo) {
 
-    console.log('[mediasync] Begin reportOfflineActions');
+    console.log("[mediasync] Begin reportOfflineActions");
 
     return localassetmanager.getUserActions(serverInfo.Id).then(actions => {
 
         if (!actions.length) {
-            console.log('[mediasync] Exit reportOfflineActions (no actions)');
+            console.log("[mediasync] Exit reportOfflineActions (no actions)");
             return Promise.resolve();
         }
 
         return apiClient.reportOfflineActions(actions).then(() => localassetmanager.deleteUserActions(actions).then(() => {
-            console.log('[mediasync] Exit reportOfflineActions (actions reported and deleted.)');
+            console.log("[mediasync] Exit reportOfflineActions (actions reported and deleted.)");
             return Promise.resolve();
         }), err => {
 
@@ -104,11 +104,11 @@ function reportOfflineActions(apiClient, serverInfo) {
 
 function syncData(apiClient, serverInfo) {
 
-    console.log('[mediasync] Begin syncData');
+    console.log("[mediasync] Begin syncData");
 
     return localassetmanager.getServerItems(serverInfo.Id).then(items => {
 
-        const completedItems = items.filter(item => (item) && ((item.SyncStatus === 'synced') || (item.SyncStatus === 'error')));
+        const completedItems = items.filter(item => (item) && ((item.SyncStatus === "synced") || (item.SyncStatus === "error")));
 
         const request = {
             TargetId: apiClient.deviceId(),
@@ -116,7 +116,7 @@ function syncData(apiClient, serverInfo) {
         };
 
         return apiClient.syncData(request).then(result => afterSyncData(apiClient, serverInfo, result).then(() => {
-            console.log('[mediasync] Exit syncData');
+            console.log("[mediasync] Exit syncData");
             return Promise.resolve();
         }, err => {
             console.error(`[mediasync] Error in syncData: ${err.toString()}`);
@@ -127,7 +127,7 @@ function syncData(apiClient, serverInfo) {
 
 function afterSyncData(apiClient, serverInfo, syncDataResult) {
 
-    console.log('[mediasync] Begin afterSyncData');
+    console.log("[mediasync] Begin afterSyncData");
 
     let p = Promise.resolve();
 
@@ -141,20 +141,20 @@ function afterSyncData(apiClient, serverInfo, syncDataResult) {
     p = p.then(() => removeObsoleteContainerItems(serverInfo.Id));
 
     return p.then(() => {
-        console.log('[mediasync] Exit afterSyncData');
+        console.log("[mediasync] Exit afterSyncData");
         return Promise.resolve();
     });
 }
 
 function removeObsoleteContainerItems(serverId) {
-    console.log('[mediasync] Begin removeObsoleteContainerItems');
+    console.log("[mediasync] Begin removeObsoleteContainerItems");
 
     return localassetmanager.removeObsoleteContainerItems(serverId);
 }
 
 function removeLocalItem(itemId, serverId) {
 
-    console.log('[mediasync] Begin removeLocalItem');
+    console.log("[mediasync] Begin removeLocalItem");
 
     return localassetmanager.getLocalItem(serverId, itemId).then(item => {
 
@@ -169,7 +169,7 @@ function removeLocalItem(itemId, serverId) {
 
 function getNewMedia(apiClient, downloadCount) {
 
-    console.log('[mediasync] Begin getNewMedia');
+    console.log("[mediasync] Begin getNewMedia");
 
     return apiClient.getReadySyncItems(apiClient.deviceId()).then(jobItems => {
 
@@ -185,7 +185,7 @@ function getNewMedia(apiClient, downloadCount) {
         });
 
         return p.then(() => {
-            console.log('[mediasync] Exit getNewMedia');
+            console.log("[mediasync] Exit getNewMedia");
             return Promise.resolve();
         });
     });
@@ -193,7 +193,7 @@ function getNewMedia(apiClient, downloadCount) {
 
 function afterMediaDownloaded(apiClient, jobItem, localItem) {
 
-    console.log('[mediasync] Begin afterMediaDownloaded');
+    console.log("[mediasync] Begin afterMediaDownloaded");
 
     return getImages(apiClient, jobItem, localItem).then(() => {
 
@@ -205,7 +205,7 @@ function afterMediaDownloaded(apiClient, jobItem, localItem) {
 
 function createLocalItem(libraryItem, jobItem) {
 
-    console.log('[localassetmanager] Begin createLocalItem');
+    console.log("[localassetmanager] Begin createLocalItem");
 
     const item = {
 
@@ -220,21 +220,21 @@ function createLocalItem(libraryItem, jobItem) {
         item.SyncJobItemId = jobItem.SyncJobItemId;
     }
 
-    console.log('[localassetmanager] End createLocalItem');
+    console.log("[localassetmanager] End createLocalItem");
     return item;
 }
 
 function getNewItem(jobItem, apiClient) {
 
-    console.log('[mediasync] Begin getNewItem');
+    console.log("[mediasync] Begin getNewItem");
 
     const libraryItem = jobItem.Item;
 
     return localassetmanager.getLocalItem(libraryItem.ServerId, libraryItem.Id).then(existingItem => {
 
         if (existingItem) {
-            if (existingItem.SyncStatus === 'queued' || existingItem.SyncStatus === 'transferring' || existingItem.SyncStatus === 'synced') {
-                console.log('[mediasync] getNewItem: getLocalItem found existing item');
+            if (existingItem.SyncStatus === "queued" || existingItem.SyncStatus === "transferring" || existingItem.SyncStatus === "synced") {
+                console.log("[mediasync] getNewItem: getLocalItem found existing item");
 
                 if (localassetmanager.enableBackgroundCompletion()) {
                     return afterMediaDownloaded(apiClient, jobItem, existingItem);
@@ -253,7 +253,7 @@ function getNewItem(jobItem, apiClient) {
         libraryItem.RemoteTrailers = [];
 
         const localItem = createLocalItem(libraryItem, jobItem);
-        localItem.SyncStatus = 'queued';
+        localItem.SyncStatus = "queued";
 
         return downloadMedia(apiClient, jobItem, localItem);
     });
@@ -327,7 +327,7 @@ function downloadMedia(apiClient, jobItem, localItem) {
 
     return localassetmanager.downloadFile(url, localItem).then(result => {
 
-        console.log('[mediasync] downloadMedia: localassetmanager.downloadFile returned.');
+        console.log("[mediasync] downloadMedia: localassetmanager.downloadFile returned.");
 
         // result.path
         // result.isComplete
@@ -339,7 +339,7 @@ function downloadMedia(apiClient, jobItem, localItem) {
             if (libraryItem.MediaSources) {
                 for (const mediaSource of libraryItem.MediaSources) {
                     mediaSource.Path = localPath;
-                    mediaSource.Protocol = 'File';
+                    mediaSource.Protocol = "File";
                 }
             }
         }
@@ -349,11 +349,11 @@ function downloadMedia(apiClient, jobItem, localItem) {
         return afterMediaDownloaded(apiClient, jobItem, localItem).then(() => {
 
             if (result.isComplete) {
-                localItem.SyncStatus = 'synced';
+                localItem.SyncStatus = "synced";
                 return reportTransfer(apiClient, localItem);
             }
 
-            localItem.SyncStatus = 'transferring';
+            localItem.SyncStatus = "transferring";
             return localassetmanager.addOrUpdateLocalItem(localItem);
         }, err => {
             console.log(`[mediasync] downloadMedia: afterMediaDownloaded failed: ${err}`);
@@ -370,7 +370,7 @@ function downloadMedia(apiClient, jobItem, localItem) {
 
 function getImages(apiClient, jobItem, localItem) {
 
-    console.log('[mediasync] Begin getImages');
+    console.log("[mediasync] Begin getImages");
 
     let p = Promise.resolve();
 
@@ -382,76 +382,76 @@ function getImages(apiClient, jobItem, localItem) {
     const mainImageTag = (libraryItem.ImageTags || {}).Primary;
 
     if (libraryItem.Id && mainImageTag) {
-        p = p.then(() => downloadImage(localItem, apiClient, serverId, libraryItem.Id, mainImageTag, 'Primary'));
+        p = p.then(() => downloadImage(localItem, apiClient, serverId, libraryItem.Id, mainImageTag, "Primary"));
     }
 
     // case 0a
     const logoImageTag = (libraryItem.ImageTags || {}).Logo;
     if (libraryItem.Id && logoImageTag) {
-        p = p.then(() => downloadImage(localItem, apiClient, serverId, libraryItem.Id, logoImageTag, 'Logo'));
+        p = p.then(() => downloadImage(localItem, apiClient, serverId, libraryItem.Id, logoImageTag, "Logo"));
     }
 
     // case 0b
     const artImageTag = (libraryItem.ImageTags || {}).Art;
     if (libraryItem.Id && artImageTag) {
-        p = p.then(() => downloadImage(localItem, apiClient, serverId, libraryItem.Id, artImageTag, 'Art'));
+        p = p.then(() => downloadImage(localItem, apiClient, serverId, libraryItem.Id, artImageTag, "Art"));
     }
 
     // case 0c
     const bannerImageTag = (libraryItem.ImageTags || {}).Banner;
     if (libraryItem.Id && bannerImageTag) {
-        p = p.then(() => downloadImage(localItem, apiClient, serverId, libraryItem.Id, bannerImageTag, 'Banner'));
+        p = p.then(() => downloadImage(localItem, apiClient, serverId, libraryItem.Id, bannerImageTag, "Banner"));
     }
 
     // case 0d
     const thumbImageTag = (libraryItem.ImageTags || {}).Thumb;
     if (libraryItem.Id && thumbImageTag) {
-        p = p.then(() => downloadImage(localItem, apiClient, serverId, libraryItem.Id, thumbImageTag, 'Thumb'));
+        p = p.then(() => downloadImage(localItem, apiClient, serverId, libraryItem.Id, thumbImageTag, "Thumb"));
     }
 
     // Backdrops
     if (libraryItem.Id && libraryItem.BackdropImageTags) {
         for (let i = 0; i < libraryItem.BackdropImageTags.length; i++) {
 
-            //var backdropImageTag = libraryItem.BackdropImageTags[i];
+            // var backdropImageTag = libraryItem.BackdropImageTags[i];
 
             //// use self-invoking function to simulate block-level variable scope
-            //(function (index, tag) {
+            // (function (index, tag) {
             //    p = p.then(function () {
             //        return downloadImage(localItem, apiClient, serverId, libraryItem.Id, tag, 'backdrop', index);
             //    });
-            //})(i, backdropImageTag);
+            // })(i, backdropImageTag);
         }
     }
 
     // case 1/2:
     if (libraryItem.SeriesId && libraryItem.SeriesPrimaryImageTag) {
-        p = p.then(() => downloadImage(localItem, apiClient, serverId, libraryItem.SeriesId, libraryItem.SeriesPrimaryImageTag, 'Primary'));
+        p = p.then(() => downloadImage(localItem, apiClient, serverId, libraryItem.SeriesId, libraryItem.SeriesPrimaryImageTag, "Primary"));
     }
 
     if (libraryItem.SeriesId && libraryItem.SeriesThumbImageTag) {
-        p = p.then(() => downloadImage(localItem, apiClient, serverId, libraryItem.SeriesId, libraryItem.SeriesThumbImageTag, 'Thumb'));
+        p = p.then(() => downloadImage(localItem, apiClient, serverId, libraryItem.SeriesId, libraryItem.SeriesThumbImageTag, "Thumb"));
     }
 
     if (libraryItem.SeasonId && libraryItem.SeasonPrimaryImageTag) {
-        p = p.then(() => downloadImage(localItem, apiClient, serverId, libraryItem.SeasonId, libraryItem.SeasonPrimaryImageTag, 'Primary'));
+        p = p.then(() => downloadImage(localItem, apiClient, serverId, libraryItem.SeasonId, libraryItem.SeasonPrimaryImageTag, "Primary"));
     }
 
     // case 3:
     if (libraryItem.AlbumId && libraryItem.AlbumPrimaryImageTag) {
-        p = p.then(() => downloadImage(localItem, apiClient, serverId, libraryItem.AlbumId, libraryItem.AlbumPrimaryImageTag, 'Primary'));
+        p = p.then(() => downloadImage(localItem, apiClient, serverId, libraryItem.AlbumId, libraryItem.AlbumPrimaryImageTag, "Primary"));
     }
 
     if (libraryItem.ParentThumbItemId && libraryItem.ParentThumbImageTag) {
-        p = p.then(() => downloadImage(localItem, apiClient, serverId, libraryItem.ParentThumbItemId, libraryItem.ParentThumbImageTag, 'Thumb'));
+        p = p.then(() => downloadImage(localItem, apiClient, serverId, libraryItem.ParentThumbItemId, libraryItem.ParentThumbImageTag, "Thumb"));
     }
 
     if (libraryItem.ParentPrimaryImageItemId && libraryItem.ParentPrimaryImageTag) {
-        p = p.then(() => downloadImage(localItem, apiClient, serverId, libraryItem.ParentPrimaryImageItemId, libraryItem.ParentPrimaryImageTag, 'Primary'));
+        p = p.then(() => downloadImage(localItem, apiClient, serverId, libraryItem.ParentPrimaryImageItemId, libraryItem.ParentPrimaryImageTag, "Primary"));
     }
 
     return p.then(() => {
-        console.log('[mediasync] Finished getImages');
+        console.log("[mediasync] Finished getImages");
         return localassetmanager.addOrUpdateLocalItem(localItem);
     }, err => {
         console.log(`[mediasync] Error getImages: ${err.toString()}`);
@@ -469,7 +469,7 @@ function downloadImage(localItem, apiClient, serverId, itemId, imageTag, imageTy
 
         let maxWidth = 400;
 
-        if (imageType === 'backdrop') {
+        if (imageType === "backdrop") {
             maxWidth = null;
         }
 
@@ -494,14 +494,14 @@ function downloadImage(localItem, apiClient, serverId, itemId, imageTag, imageTy
 
 function getSubtitles(apiClient, jobItem, localItem) {
 
-    console.log('[mediasync] Begin getSubtitles');
+    console.log("[mediasync] Begin getSubtitles");
 
     if (!jobItem.Item.MediaSources.length) {
-        console.log('[mediasync] Cannot download subtitles because video has no media source info.');
+        console.log("[mediasync] Cannot download subtitles because video has no media source info.");
         return Promise.resolve();
     }
 
-    const files = jobItem.AdditionalFiles.filter(f => f.Type === 'Subtitles');
+    const files = jobItem.AdditionalFiles.filter(f => f.Type === "Subtitles");
 
     const mediaSource = jobItem.Item.MediaSources[0];
 
@@ -512,21 +512,21 @@ function getSubtitles(apiClient, jobItem, localItem) {
     });
 
     return p.then(() => {
-        console.log('[mediasync] Exit getSubtitles');
+        console.log("[mediasync] Exit getSubtitles");
         return Promise.resolve();
     });
 }
 
 function getItemSubtitle(file, apiClient, jobItem, localItem, mediaSource) {
 
-    console.log('[mediasync] Begin getItemSubtitle');
+    console.log("[mediasync] Begin getItemSubtitle");
 
-    const subtitleStream = mediaSource.MediaStreams.filter(m => m.Type === 'Subtitle' && m.Index === file.Index)[0];
+    const subtitleStream = mediaSource.MediaStreams.filter(m => m.Type === "Subtitle" && m.Index === file.Index)[0];
 
     if (!subtitleStream) {
 
         // We shouldn't get in here, but let's just be safe anyway
-        console.log('[mediasync] Cannot download subtitles because matching stream info was not found.');
+        console.log("[mediasync] Cannot download subtitles because matching stream info was not found.");
         return Promise.resolve();
     }
 
@@ -548,7 +548,7 @@ function getItemSubtitle(file, apiClient, jobItem, localItem, mediaSource) {
         }
 
         subtitleStream.Path = subtitleResult.path;
-        subtitleStream.DeliveryMethod = 'External';
+        subtitleStream.DeliveryMethod = "External";
         return localassetmanager.addOrUpdateLocalItem(localItem);
     });
 }
@@ -557,11 +557,11 @@ function checkLocalFileExistence(apiClient, serverInfo, options) {
 
     if (options.checkFileExistence) {
 
-        console.log('[mediasync] Begin checkLocalFileExistence');
+        console.log("[mediasync] Begin checkLocalFileExistence");
 
         return localassetmanager.getServerItems(serverInfo.Id).then(items => {
 
-            const completedItems = items.filter(item => (item) && ((item.SyncStatus === 'synced') || (item.SyncStatus === 'error')));
+            const completedItems = items.filter(item => (item) && ((item.SyncStatus === "synced") || (item.SyncStatus === "error")));
 
             let p = Promise.resolve();
 
@@ -584,8 +584,8 @@ function checkLocalFileExistence(apiClient, serverInfo, options) {
 
 export default class MediaSync {
 
-    sync(apiClient, localassetmanager, serverInfo, options) {
-        console.log('[mediasync]************************************* Start sync');
+    public sync(apiClient, localassetmanager, serverInfo, options) {
+        console.log("[mediasync]************************************* Start sync");
 
         return checkLocalFileExistence(apiClient, localassetmanager, serverInfo, options).then(
             () => processDownloadStatus(apiClient, localassetmanager, serverInfo, options).then(
@@ -609,7 +609,7 @@ export default class MediaSync {
                                 ).then(() => // Do the second data sync
                                     syncData(apiClient, localassetmanager, serverInfo).then(() => {
                                         console.log(
-                                            '[mediasync]************************************* Exit sync'
+                                            "[mediasync]************************************* Exit sync"
                                         );
                                         return Promise.resolve();
                                     }))

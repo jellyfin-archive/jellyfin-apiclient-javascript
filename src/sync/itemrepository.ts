@@ -1,4 +1,4 @@
-﻿// In the following line, you should include the prefixes of implementations you want to test.
+// In the following line, you should include the prefixes of implementations you want to test.
 const indexedDB = self.indexedDB || self.mozIndexedDB || self.webkitIndexedDB || self.msIndexedDB;
 // DON'T use "var indexedDB = ..." if you're not in a function.
 // Moreover, you may need references to some window.IDB* objects:
@@ -63,7 +63,7 @@ function getDb(serverId, callback) {
 
 function getServerItemTypes(serverId, userId) {
 
-    return getAll(serverId, userId).then(all => all.map(item2 => item2.Item.Type || '').filter(filterDistinct));
+    return getAll(serverId, userId).then(all => all.map(item2 => item2.Item.Type || "").filter(filterDistinct));
 }
 
 function getAll(serverId, userId) {
@@ -73,11 +73,11 @@ function getAll(serverId, userId) {
 
             const storeName = getDbName(serverId);
 
-            const transaction = db.transaction([storeName], 'readonly');
+            const transaction = db.transaction([storeName], "readonly");
             const objectStore = transaction.objectStore(storeName);
             let request;
 
-            if ('getAll' in objectStore) {
+            if ("getAll" in objectStore) {
 
                 // IDBObjectStore.getAll() will return the full set of items in our store.
                 request = objectStore.getAll(null, 10000);
@@ -115,7 +115,7 @@ function get(serverId, key) {
 
             const storeName = getDbName(serverId);
 
-            const transaction = db.transaction([storeName], 'readonly');
+            const transaction = db.transaction([storeName], "readonly");
             const objectStore = transaction.objectStore(storeName);
             const request = objectStore.get(key);
 
@@ -136,7 +136,7 @@ function set(serverId, key, val) {
 
             const storeName = getDbName(serverId);
 
-            const transaction = db.transaction([storeName], 'readwrite');
+            const transaction = db.transaction([storeName], "readwrite");
             const objectStore = transaction.objectStore(storeName);
             const request = objectStore.put(val, key);
 
@@ -152,7 +152,7 @@ function remove(serverId, key) {
 
             const storeName = getDbName(serverId);
 
-            const transaction = db.transaction([storeName], 'readwrite');
+            const transaction = db.transaction([storeName], "readwrite");
             const objectStore = transaction.objectStore(storeName);
             const request = objectStore.delete(key);
 
@@ -168,7 +168,7 @@ function clear(serverId) {
 
             const storeName = getDbName(serverId);
 
-            const transaction = db.transaction([storeName], 'readwrite');
+            const transaction = db.transaction([storeName], "readwrite");
             const objectStore = transaction.objectStore(storeName);
             const request = objectStore.clear();
 

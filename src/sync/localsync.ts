@@ -1,4 +1,4 @@
-﻿import MultiServerSync from 'sync/multiserversync.js';
+import MultiServerSync from "./sync/multiserversync";
 
 let isSyncing;
 
@@ -6,7 +6,7 @@ export default {
 
     sync(connectionManager, options) {
 
-        console.log('localSync.sync starting...');
+        console.log("localSync.sync starting...");
 
         if (isSyncing) {
             return Promise.resolve();

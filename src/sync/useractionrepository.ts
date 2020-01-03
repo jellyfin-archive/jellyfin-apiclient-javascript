@@ -1,4 +1,4 @@
-﻿// In the following line, you should include the prefixes of implementations you want to test.
+// In the following line, you should include the prefixes of implementations you want to test.
 const indexedDB = self.indexedDB || self.mozIndexedDB || self.webkitIndexedDB || self.msIndexedDB;
 // DON'T use "var indexedDB = ..." if you're not in a function.
 // Moreover, you may need references to some window.IDB* objects:
@@ -61,11 +61,11 @@ function getAll() {
 
             const storeName = dbName;
 
-            const transaction = db.transaction([storeName], 'readonly');
+            const transaction = db.transaction([storeName], "readonly");
             const objectStore = transaction.objectStore(storeName);
             let request;
 
-            if ('getAll' in objectStore) {
+            if ("getAll" in objectStore) {
 
                 // IDBObjectStore.getAll() will return the full set of items in our store.
                 request = objectStore.getAll(null, 10000);
@@ -103,7 +103,7 @@ function get(key) {
 
             const storeName = dbName;
 
-            const transaction = db.transaction([storeName], 'readonly');
+            const transaction = db.transaction([storeName], "readonly");
             const objectStore = transaction.objectStore(storeName);
             const request = objectStore.get(key);
 
@@ -124,7 +124,7 @@ function set(key, val) {
 
             const storeName = dbName;
 
-            const transaction = db.transaction([storeName], 'readwrite');
+            const transaction = db.transaction([storeName], "readwrite");
             const objectStore = transaction.objectStore(storeName);
             const request = objectStore.put(val, key);
 
@@ -140,7 +140,7 @@ function remove(key) {
 
             const storeName = dbName;
 
-            const transaction = db.transaction([storeName], 'readwrite');
+            const transaction = db.transaction([storeName], "readwrite");
             const objectStore = transaction.objectStore(storeName);
             const request = objectStore.delete(key);
 
@@ -156,7 +156,7 @@ function clear() {
 
             const storeName = dbName;
 
-            const transaction = db.transaction([storeName], 'readwrite');
+            const transaction = db.transaction([storeName], "readwrite");
             const objectStore = transaction.objectStore(storeName);
             const request = objectStore.clear();
 

@@ -1,11 +1,11 @@
-﻿function onCachePutFail(e) {
+function onCachePutFail(e) {
     console.log(e);
 }
 
 function updateCache(instance) {
     const cache = instance.cache;
     if (cache) {
-        cache.put('data', new Response(JSON.stringify(instance.localData))).catch(onCachePutFail);
+        cache.put("data", new Response(JSON.stringify(instance.localData))).catch(onCachePutFail);
     }
 }
 
@@ -18,14 +18,14 @@ export default class MyStore {
     constructor() {
         try {
             if (self.caches) {
-                caches.open('embydata').then(onCacheOpened.bind(this));
+                caches.open("embydata").then(onCacheOpened.bind(this));
             }
         } catch (err) {
             console.log(`Error opening cache: ${err}`);
         }
     }
 
-    setItem(name, value) {
+    public setItem(name, value) {
         localStorage.setItem(name, value);
         const localData = this.localData;
         if (localData) {
@@ -37,11 +37,11 @@ export default class MyStore {
         }
     }
 
-    getItem(name) {
+    public getItem(name) {
         return localStorage.getItem(name);
     }
 
-    removeItem(name) {
+    public removeItem(name) {
         localStorage.removeItem(name);
         const localData = this.localData;
         if (localData) {

@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "incremental": true,
+    "target": "es2018",
+    "module": "esnext",
+    "lib": [
+      "dom",
+      "es2018"
+    ],
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "importHelpers": true,
+    /* Strict Type-Checking Options */
+    "strict": true,
+    /* Additional Checks */
+    "noUnusedLocals": false,  // TODO: Maybe turn on again
+    /* Module Resolution Options */
+    "esModuleInterop": true,
+    /* Advanced Options */
+    "forceConsistentCasingInFileNames": true
+  }
+}

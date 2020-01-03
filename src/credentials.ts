@@ -1,8 +1,8 @@
-﻿import events from 'events.js';
+import events from "./events";
 
 function ensure(instance, data) {
     if (!instance._credentials) {
-        const json = instance.appStorage.getItem(instance.key) || '{}';
+        const json = instance.appStorage.getItem(instance.key) || "{}";
 
         console.log(`credentials initialized with: ${json}`);
         instance._credentials = JSON.parse(json);
@@ -18,21 +18,21 @@ function set(instance, data) {
         instance.clear();
     }
 
-    events.trigger(instance, 'credentialsupdated');
+    events.trigger(instance, "credentialsupdated");
 }
 
 export default class Credentials {
     constructor(appStorage, key) {
-        this.key = key || 'jellyfin_credentials';
+        this.key = key || "jellyfin_credentials";
         this.appStorage = appStorage;
     }
 
-    clear() {
+    public clear() {
         this._credentials = null;
         this.appStorage.removeItem(this.key);
     }
 
-    credentials(data) {
+    public credentials(data) {
         if (data) {
             set(this, data);
         }
@@ -41,9 +41,9 @@ export default class Credentials {
         return this._credentials;
     }
 
-    addOrUpdateServer(list, server) {
+    public addOrUpdateServer(list, server) {
         if (!server.Id) {
-            throw new Error('Server.Id cannot be null or empty');
+            throw new Error("Server.Id cannot be null or empty");
         }
 
         const existing = list.filter(({ Id }) => Id === server.Id)[0];
