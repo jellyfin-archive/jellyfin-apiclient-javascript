@@ -3,6 +3,7 @@
  - [thornbill](https://github.com/thornbill)
  - [cvium](https://github.com/cvium)
  - [Oddstr13](https://github.com/oddstr13)
+ - [Cromefire_](https://github.com/cromefire)
 
 # Emby Contributors
 
