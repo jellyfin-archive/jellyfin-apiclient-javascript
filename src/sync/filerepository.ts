@@ -1,4 +1,4 @@
-﻿function getValidFileName(path: string[]) {
+﻿function getValidFileName(path: string) {
 
     // TODO
     return path;

@@ -5,7 +5,7 @@
     "module": "esnext",
     "lib": [
       "dom",
-      "es2018"
+      "esnext"
     ],
     "declaration": true,
     "declarationMap": true,

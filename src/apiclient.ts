@@ -1,12 +1,6 @@
 import events from "./events";
-import {
-    CompRelation,
-    Nullish,
-    Optional,
-    ServerInfo,
-    UrlOptions
-} from "./types";
-import { getDateParamValue, nf, snbn } from "./utils";
+import { CompRelation, Optional, ServerInfo, UrlOptions } from "./types";
+import { getDateParamValue, snbn } from "./utils";
 
 function redetectBitrate(instance: ApiClient) {
     stopBitrateDetection(instance);
@@ -132,7 +126,7 @@ function getFetchPromise(request: any): Promise<Response> {
  */
 export class ApiClient {
     public appStorage: any;
-    private serverInfo?: ServerInfo;
+    protected serverInfo?: ServerInfo;
     private _serverAddress: string;
     private readonly _deviceId: string;
     private _deviceName: string;
@@ -450,6 +444,12 @@ export class ApiClient {
      */
     public getCurrentUserId() {
         return this.serverInfo?.UserId;
+    }
+
+    public requireUserId(): string {
+        const uid = this.serverInfo?.UserId;
+        snbn("userId", uid);
+        return uid!!;
     }
 
     public accessToken() {

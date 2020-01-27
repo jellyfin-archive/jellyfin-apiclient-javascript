@@ -2,21 +2,91 @@ import filerepository from "src/sync/filerepository";
 import itemrepository from "src/sync/itemrepository";
 import transfermanager from "src/sync/transfermanager";
 import useractionrepository from "src/sync/useractionrepository";
+import { Item, Optional, SyncedItem, UrlOptions } from "./types";
 
-function getLocalItem(serverId, itemId) {
+export interface LocalAssetManager {
+    downloadSubtitles(url, fileName): Promise<never>;
 
+    getItemFileSize(path): Promise<number>;
+
+    hasImage(serverId, itemId, imageType, index): Promise<void | boolean>;
+
+    fileExists(localFilePath: string): Promise<boolean>;
+
+    recordUserAction(action): Promise<unknown>;
+
+    getViewItems(
+        serverId: string,
+        userId: string,
+        options: UrlOptions
+    ): Promise<Item[]>;
+
+    getImageUrl(serverId, itemId, imageOptions): string;
+
+    removeObsoleteContainerItems(serverId): Promise<void>;
+
+    getDirectoryPath(item): any[];
+
+    getDownloadItemCount(): Promise<number>;
+
+    deleteUserActions(actions): Promise<void[]>;
+
+    addOrUpdateLocalItem(localItem): Promise<unknown>;
+
+    downloadImage(
+        localItem,
+        url,
+        serverId,
+        itemId,
+        imageType,
+        index
+    ): Promise<never>;
+
+    resyncTransfers(): Promise<void>;
+
+    isDownloadFileInQueue(path): any;
+
+    getUserActions(serverId): Promise<Int32Array>;
+
+    getLocalFileName(item, originalFileName): string[];
+
+    getServerItems(serverId): Promise<unknown>;
+
+    downloadFile(url, localItem): Promise<never>;
+
+    deleteUserAction(action): Promise<unknown>;
+
+    getViews(serverId, userId): Promise<any[]>;
+
+    enableBackgroundCompletion(): any;
+
+    getLocalItem(serverId: string, itemId: string): Promise<SyncedItem>;
+
+    removeLocalItem(localItem): Promise<unknown>;
+
+    getItemsFromIds(serverId, ids): Promise<unknown[]>;
+
+    getSubtitleSaveFileName(
+        localItem,
+        mediaPath,
+        language,
+        isForced,
+        format
+    ): any;
+}
+
+function getLocalItem(serverId: string, itemId: string) {
     console.log("[lcoalassetmanager] Begin getLocalItem");
 
     return itemrepository.get(serverId, itemId);
 }
 
 function recordUserAction(action) {
-
     action.Id = createGuid();
     return useractionrepository.set(action.Id, action);
 }
 
-function getUserActions(serverId) {
+function getUserActions(serverId: string) {
     return useractionrepository.getByServerId(serverId);
 }
 
@@ -34,15 +104,13 @@ function deleteUserActions(actions) {
     return Promise.all(results);
 }
 
-function getServerItems(serverId) {
-
-    console.log("[localassetmanager] Begin getServerItems");
+function getServerItems(serverId: string) {
+    console.info("[localassetmanager] Begin getServerItems");
 
     return itemrepository.getAll(serverId);
 }
 
-function getItemsFromIds(serverId, ids) {
-
+function getItemsFromIds(serverId: string, ids: string[]) {
     const actions = ids.map(id => {
         const strippedId = stripStart(id, "local:");
 
@@ -50,23 +118,18 @@ function getItemsFromIds(serverId, ids) {
     });
 
     return Promise.all(actions).then(items => {
-
         const libItems = items.map(locItem => locItem.Item);
-
 
         return Promise.resolve(libItems);
     });
 }
 
-function getViews(serverId, userId) {
-
+function getViews(serverId: string, userId: string) {
     return itemrepository.getServerItemTypes(serverId, userId).then(types => {
-
         const list = [];
         let item;
 
         if (types.includes("Audio")) {
-
             item = {
                 Name: "Music",
                 ServerId: serverId,
@@ -80,7 +143,6 @@ function getViews(serverId, userId) {
         }
 
         if (types.includes("Photo")) {
-
             item = {
                 Name: "Photos",
                 ServerId: serverId,
@@ -94,7 +156,6 @@ function getViews(serverId, userId) {
         }
 
         if (types.includes("Episode")) {
-
             item = {
                 Name: "TV",
                 ServerId: serverId,
@@ -108,7 +169,6 @@ function getViews(serverId, userId) {
         }
 
         if (types.includes("Movie")) {
-
             item = {
                 Name: "Movies",
                 ServerId: serverId,
@@ -122,7 +182,6 @@ function getViews(serverId, userId) {
         }
 
         if (types.includes("Video")) {
-
             item = {
                 Name: "Videos",
                 ServerId: serverId,
@@ -136,7 +195,6 @@ function getViews(serverId, userId) {
         }
 
         if (types.includes("MusicVideo")) {
-
             item = {
                 Name: "Music Videos",
                 ServerId: serverId,
@@ -153,8 +211,12 @@ function getViews(serverId, userId) {
     });
 }
 
-function updateFiltersForTopLevelView(parentId, mediaTypes, includeItemTypes, query) {
-
+function updateFiltersForTopLevelView(
+    parentId: string,
+    mediaTypes: any, // TODO: Can't this be removed?
+    includeItemTypes: string[],
+    query: { Recursive?: boolean } = {}
+) {
     switch (parentId) {
         case "MusicView":
             if (query.Recursive) {
@@ -199,38 +261,32 @@ function updateFiltersForTopLevelView(parentId, mediaTypes, includeItemTypes, qu
             }
             return true;
     }
-
     return false;
 }
 
-function normalizeId(id) {
-
-    if (id) {
-        id = stripStart(id, "localview:");
-        id = stripStart(id, "local:");
-        return id;
+function normalizeId(id: any) {
+    if (typeof id !== "string") {
+        return null;
     }
-
-    return null;
+    id = stripStart(id, "localview:");
+    id = stripStart(id, "local:");
+    return id;
 }
 
-function normalizeIdList(val) {
-
-    if (val) {
-        return val.split(",").map(normalizeId);
+function normalizeIdList(val: any) {
+    if (typeof val !== "string") {
+        return [];
     }
-
-    return [];
+    return val.split(",").map(normalizeId);
 }
 
-function shuffle(array) {
+function shuffle<T>(array: T[]): T[] {
     let currentIndex = array.length;
     let temporaryValue;
     let randomIndex;
 
     // While there remain elements to shuffle...
     while (0 !== currentIndex) {
-
         // Pick a remaining element...
         randomIndex = Math.floor(Math.random() * currentIndex);
         currentIndex -= 1;
@@ -244,24 +300,34 @@ function shuffle(array) {
     return array;
 }
 
-function sortItems(items, query) {
-
+function sortItems(items: Item[], query: { sortBy?: string } = {}) {
     const sortBy = (query.sortBy || "").split(",")[0];
 
     if (sortBy === "DateCreated") {
         items.sort((a, b) => compareDates(a.DateCreated, b.DateCreated));
-    }
-    else if (sortBy === "Random") {
+    } else if (sortBy === "Random") {
         items = shuffle(items);
     } else {
-        items.sort((a, b) => a.SortName.toLowerCase().localeCompare(b.SortName.toLowerCase()));
+        items.sort((a, b) =>
+            a.SortName.toLowerCase().localeCompare(b.SortName.toLowerCase())
+        );
     }
 
     return items;
 }
 
-function getViewItems(serverId, userId, options) {
+function splitCSL(str: any) {
+    if (typeof str !== "string") {
+        return [];
+    }
+    return str.split(",");
+}
 
+async function getViewItems(
+    serverId: string,
+    userId: string,
+    options: UrlOptions
+): Promise<Item[]> {
     let parentId = options.ParentId;
 
     parentId = normalizeId(parentId);
@@ -269,20 +335,26 @@ function getViewItems(serverId, userId, options) {
     const seriesId = normalizeId(options.SeriesId || options.seriesId);
     const albumIds = normalizeIdList(options.AlbumIds || options.albumIds);
 
-    const includeItemTypes = options.IncludeItemTypes ? options.IncludeItemTypes.split(",") : [];
-    const filters = options.Filters ? options.Filters.split(",") : [];
-    const mediaTypes = options.MediaTypes ? options.MediaTypes.split(",") : [];
+    const includeItemTypes = splitCSL(options.IncludeItemTypes);
+    const filters = splitCSL(options.Filters);
+    const mediaTypes = splitCSL(options.MediaTypes);
 
-    if (updateFiltersForTopLevelView(parentId, mediaTypes, includeItemTypes, options)) {
+    if (
+        updateFiltersForTopLevelView(
+            parentId,
+            mediaTypes,
+            includeItemTypes,
+            options
+        )
+    ) {
         parentId = null;
     }
 
-    return getServerItems(serverId).then(items => {
+    const items = await getServerItems(serverId);
+    // debugPrintItems(items);
 
-        // debugPrintItems(items);
-
-        let resultItems = items.filter(item => {
-
+    let resultItems = items
+        .filter(item => {
             if (item.SyncStatus && item.SyncStatus !== "synced") {
                 return false;
             }
@@ -301,7 +373,10 @@ function getViewItems(serverId, userId, options) {
                 return false;
             }
 
-            if (albumIds.length && !albumIds.includes(item.Item.AlbumId || "")) {
+            if (
+                albumIds.length &&
+                !albumIds.includes(item.Item.AlbumId || "")
+            ) {
                 return false;
             }
 
@@ -318,7 +393,6 @@ function getViewItems(serverId, userId, options) {
             }
 
             if (options.Recursive) {
-
             } else {
                 if (parentId && item.Item.ParentId !== parentId) {
                     return false;
@@ -326,107 +400,103 @@ function getViewItems(serverId, userId, options) {
             }
 
             return true;
+        })
+        .map(item => item.Item);
 
-        }).map(item2 => item2.Item);
+    resultItems = sortItems(resultItems, options);
 
-        resultItems = sortItems(resultItems, options);
-
-        if (options.Limit) {
-            resultItems = resultItems.slice(0, options.Limit);
+    if (options.Limit) {
+        if (typeof options.Limit !== "number") {
+            throw new TypeError("Limit has to be a number");
         }
+        resultItems = resultItems.slice(0, options.Limit);
+    }
 
-        return Promise.resolve(resultItems);
-    });
+    return resultItems;
 }
 
-function removeObsoleteContainerItems(serverId) {
+async function removeObsoleteContainerItems(serverId: string) {
+    const items = await getServerItems(serverId);
+    const seriesItems = items.filter(item => {
+        const type = (item.Item.Type || "").toLowerCase();
+        return type === "series";
+    });
 
-    return getServerItems(serverId).then(items => {
+    const seasonItems = items.filter(item => {
+        const type = (item.Item.Type || "").toLowerCase();
+        return type === "season";
+    });
 
-        const seriesItems = items.filter(item => {
+    const albumItems = items.filter(item => {
+        const type = (item.Item.Type || "").toLowerCase();
+        return type === "musicalbum" || type === "photoalbum";
+    });
 
-            const type = (item.Item.Type || "").toLowerCase();
-            return type === "series";
-        });
-
-
-        const seasonItems = items.filter(item => {
-
-            const type = (item.Item.Type || "").toLowerCase();
-            return type === "season";
-        });
-
-        const albumItems = items.filter(item => {
-
-            const type = (item.Item.Type || "").toLowerCase();
-            return type === "musicalbum" || type === "photoalbum";
-        });
-
-        const requiredSeriesIds = items.filter(item => {
-
+    const requiredSeriesIds = items
+        .filter(item => {
             const type = (item.Item.Type || "").toLowerCase();
             return type === "episode";
-        }).map(item2 => item2.Item.SeriesId).filter(filterDistinct);
+        })
+        .map(item2 => item2.Item.SeriesId)
+        .filter(filterDistinct);
 
-        const requiredSeasonIds = items.filter(item => {
-
+    const requiredSeasonIds = items
+        .filter(item => {
             const type = (item.Item.Type || "").toLowerCase();
             return type === "episode";
-        }).map(item2 => item2.Item.SeasonId).filter(filterDistinct);
+        })
+        .map(item2 => item2.Item.SeasonId)
+        .filter(filterDistinct);
 
-        const requiredAlbumIds = items.filter(item => {
-
+    const requiredAlbumIds = items
+        .filter(item => {
             const type = (item.Item.Type || "").toLowerCase();
             return type === "audio" || type === "photo";
-        }).map(item2 => item2.Item.AlbumId).filter(filterDistinct);
+        })
+        .map(item2 => item2.Item.AlbumId)
+        .filter(filterDistinct);
 
-        const obsoleteItems = [];
+    const obsoleteItems: SyncedItem[] = [];
 
-        seriesItems.forEach(item => {
-
-            if (!requiredSeriesIds.includes(item.Item.Id)) {
-                obsoleteItems.push(item);
-            }
-        });
-
-        seasonItems.forEach(item => {
-
-            if (!requiredSeasonIds.includes(item.Item.Id)) {
-                obsoleteItems.push(item);
-            }
-        });
-
-        albumItems.forEach(item => {
-
-            if (!requiredAlbumIds.includes(item.Item.Id)) {
-                obsoleteItems.push(item);
-            }
-        });
-
-
-        let p = Promise.resolve();
-
-        obsoleteItems.forEach(item => {
-
-            p = p.then(() => itemrepository.remove(item.ServerId, item.Id));
-        });
-
-        return p;
+    seriesItems.forEach(item => {
+        if (!requiredSeriesIds.includes(item.Item.Id)) {
+            obsoleteItems.push(item);
+        }
     });
+
+    seasonItems.forEach(item => {
+        if (!requiredSeasonIds.includes(item.Item.Id)) {
+            obsoleteItems.push(item);
+        }
+    });
+
+    albumItems.forEach(item => {
+        if (!requiredAlbumIds.includes(item.Item.Id)) {
+            obsoleteItems.push(item);
+        }
+    });
+
+    let p = Promise.resolve();
+
+    obsoleteItems.forEach(item => {
+        p = p.then(() => itemrepository.remove(item.ServerId, item.Id));
+    });
+
+    return p;
 }
 
-
 function removeLocalItem(localItem) {
-
     return itemrepository.get(localItem.ServerId, localItem.Id).then(item => {
-
-        const onFileDeletedSuccessOrFail = () => itemrepository.remove(localItem.ServerId, localItem.Id);
+        const onFileDeletedSuccessOrFail = () =>
+            itemrepository.remove(localItem.ServerId, localItem.Id);
 
         if (!item.LocalPath) {
             return onFileDeletedSuccessOrFail();
         }
 
-        return filerepository.deleteFile(item.LocalPath).then(onFileDeletedSuccessOrFail, onFileDeletedSuccessOrFail);
+        return filerepository
+            .deleteFile(item.LocalPath)
+            .then(onFileDeletedSuccessOrFail, onFileDeletedSuccessOrFail);
     });
 }
 
@@ -434,8 +504,13 @@ function addOrUpdateLocalItem(localItem) {
     return itemrepository.set(localItem.ServerId, localItem.Id, localItem);
 }
 
-function getSubtitleSaveFileName(localItem, mediaPath, language, isForced, format) {
-
+function getSubtitleSaveFileName(
+    localItem,
+    mediaPath,
+    language,
+    isForced,
+    format
+) {
     let name = getNameWithoutExtension(mediaPath);
 
     if (language) {
@@ -459,7 +534,6 @@ function getItemFileSize(path) {
 }
 
 function getNameWithoutExtension(path) {
-
     let fileName = path;
 
     const pos = fileName.lastIndexOf(".");
@@ -472,7 +546,6 @@ function getNameWithoutExtension(path) {
 }
 
 function downloadFile(url, localItem) {
-
     const imageUrl = getImageUrl(localItem.Item.ServerId, localItem.Item.Id, {
         type: "Primary",
         index: 0
@@ -481,12 +554,10 @@ function downloadFile(url, localItem) {
 }
 
 function downloadSubtitles(url, fileName) {
-
     return transfermanager.downloadSubtitles(url, fileName);
 }
 
 function getImageUrl(serverId, itemId, imageOptions) {
-
     const imageType = imageOptions.type;
     const index = imageOptions.index;
 
@@ -496,67 +567,67 @@ function getImageUrl(serverId, itemId, imageOptions) {
 }
 
 function hasImage(serverId, itemId, imageType, index) {
-
     const pathArray = getImagePath(serverId, itemId, imageType, index);
     const localFilePath = filerepository.getFullMetadataPath(pathArray);
 
-    return filerepository.fileExists(localFilePath).then(exists => // TODO: Maybe check for broken download when file size is 0 and item is not queued
-        //// if (exists) {
-        ////    if (!transfermanager.isDownloadFileInQueue(localFilePath)) {
-        ////        // If file exists but 
-        ////        exists = false;
-        ////    }
-        //// }
+    return filerepository.fileExists(localFilePath).then(
+        (
+            exists // TODO: Maybe check for broken download when file size is 0 and item is not queued
+        ) =>
+            //// if (exists) {
+            ////    if (!transfermanager.isDownloadFileInQueue(localFilePath)) {
+            ////        // If file exists but
+            ////        exists = false;
+            ////    }
+            //// }
 
-        Promise.resolve(exists), err => Promise.resolve(false));
+            Promise.resolve(exists),
+        err => Promise.resolve(false)
+    );
 }
 
-function fileExists(localFilePath) {
+function fileExists(localFilePath: string) {
     return filerepository.fileExists(localFilePath);
 }
 
 function downloadImage(localItem, url, serverId, itemId, imageType, index) {
-
     const localPathParts = getImagePath(serverId, itemId, imageType, index);
 
     return transfermanager.downloadImage(url, localPathParts);
 }
 
-function isDownloadFileInQueue(path) {
-
+function isDownloadFileInQueue(path: string) {
     return transfermanager.isDownloadFileInQueue(path);
 }
 
 function getDownloadItemCount() {
-
     return transfermanager.getDownloadItemCount();
 }
 
 // Helpers ***********************************************************
 
-function getDirectoryPath(item) {
-
+function getDirectoryPath(item: Item) {
     const parts = [];
 
     const itemtype = item.Type.toLowerCase();
     const mediaType = (item.MediaType || "").toLowerCase();
 
-    if (itemtype === "episode" || itemtype === "series" || itemtype === "season") {
-
+    if (
+        itemtype === "episode" ||
+        itemtype === "series" ||
+        itemtype === "season"
+    ) {
         parts.push("TV");
-
     } else if (mediaType === "video") {
-
         parts.push("Videos");
-
-    } else if (itemtype === "audio" || itemtype === "musicalbum" || itemtype === "musicartist") {
-
+    } else if (
+        itemtype === "audio" ||
+        itemtype === "musicalbum" ||
+        itemtype === "musicartist"
+    ) {
         parts.push("Music");
-
     } else if (itemtype === "photo" || itemtype === "photoalbum") {
-
         parts.push("Photos");
-
     }
 
     const albumArtist = item.AlbumArtist;
@@ -579,21 +650,23 @@ function getDirectoryPath(item) {
     }
 
     if ((mediaType === "video" && itemtype !== "episode") || item.IsFolder) {
-
         parts.push(item.Name);
     }
 
     const finalParts = [];
-    for (let i = 0; i < parts.length; i++) {
-
-        finalParts.push(filerepository.getValidFileName(parts[i]));
+    for (const part of parts) {
+        finalParts.push(filerepository.getValidFileName(part));
     }
 
     return finalParts;
 }
 
-function getImagePath(serverId, itemId, imageType, index) {
-
+function getImagePath(
+    serverId: string,
+    itemId: string,
+    imageType: string,
+    index: number
+) {
     const parts = [];
     parts.push("images");
 
@@ -603,16 +676,14 @@ function getImagePath(serverId, itemId, imageType, index) {
     parts.push(`${itemId}_${imageType}_${index.toString()}`); // + '.jpg');
 
     const finalParts = [];
-    for (let i = 0; i < parts.length; i++) {
-
-        finalParts.push(parts[i]);
+    for (const part of parts) {
+        finalParts.push(part);
     }
 
     return finalParts;
 }
 
-function getLocalFileName(item, originalFileName) {
-
+function getLocalFileName(item: Item, originalFileName?: string) {
     const filename = originalFileName || item.Name;
 
     return filerepository.getValidFileName(filename);
@@ -623,42 +694,54 @@ function resyncTransfers() {
 }
 
 function createGuid() {
-    let d = new Date().getTime();
-    if (window.performance && typeof window.performance.now === "function") {
-        d += performance.now(); // use high-precision timer if available
-    }
-    const uuid = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
-        const r = (d + Math.random() * 16) % 16 | 0;
-        d = Math.floor(d / 16);
-        return (c === "x" ? r : (r & 0x3 | 0x8)).toString(16);
+    const rand = new Uint8Array(16);
+    crypto.getRandomValues(rand);
+    const hexlets = Array.from(rand)
+        .map(value => {
+            // tslint:disable-next-line:no-bitwise
+            return [(value & 240) >> 4, value & 15];
+        })
+        .flat();
+    let i = 0;
+    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
+        const r = hexlets[i++];
+        // tslint:disable-next-line:no-bitwise
+        return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
     });
-    return uuid;
 }
 
-function startsWith(str, find) {
-
+function startsWith(str: Optional<string>, find: null | undefined): false;
+function startsWith(str: null | undefined, find: Optional<string>): false;
+function startsWith(str: Optional<string>, find: Optional<string>): boolean;
+function startsWith(str: Optional<string>, find: Optional<string>): boolean {
     if (str && find && str.length > find.length) {
-        if (str.indexOf(find) === 0) {
-            return true;
-        }
+        return str.startsWith(find);
     }
 
     return false;
 }
 
-function stripStart(str, find) {
+function stripStart(str: string, find: string): string;
+function stripStart(
+    str: Optional<string>,
+    find: Optional<string>
+): Optional<string>;
+function stripStart(
+    str: Optional<string>,
+    find: Optional<string>
+): Optional<string> {
     if (startsWith(str, find)) {
-        return str.substr(find.length);
+        return str!.substr(find!.length);
     }
 
     return str;
 }
 
-function filterDistinct(value, index, self) {
+function filterDistinct<T>(value: T, index: number, self: T[]) {
     return self.indexOf(value) === index;
 }
 
-function compareDates(a, b) {
+function compareDates(da: Date, db: Date) {
     // Compare two dates (could be of any type supported by the convert
     // function above) and returns:
     //  -1 : if a < b
@@ -666,21 +749,22 @@ function compareDates(a, b) {
     //   1 : if a > b
     // NaN : if a or b is an illegal date
     // NOTE: The code inside isFinite does an assignment (=).
-    return (
-        isFinite(a = a.valueOf()) &&
-            isFinite(b = b.valueOf()) ?
-            (a > b) - (a < b) :
-            NaN
-    );
+    const a: number = da.valueOf();
+    const b: number = db.valueOf();
+    return isFinite(a) && isFinite(b) ? Number(a > b) - Number(a < b) : NaN;
 }
 
-function debugPrintItems(items) {
-
+function debugPrintItems(items: Item[]) {
     console.log("Current local items:");
     console.group();
 
     items.forEach(item => {
-        console.info("ID: %s Type: %s Name: %s", item.Item.Id, item.Item.Type, item.Item.Name);
+        console.info(
+            "ID: %s Type: %s Name: %s",
+            item.Item.Id,
+            item.Item.Type,
+            item.Item.Name
+        );
     });
 
     console.groupEnd();
@@ -690,7 +774,7 @@ function enableBackgroundCompletion() {
     return transfermanager.enableBackgroundCompletion;
 }
 
-export default {
+const localAssetManager: LocalAssetManager = {
     getLocalItem,
     getDirectoryPath,
     getLocalFileName,
@@ -718,3 +802,5 @@ export default {
     fileExists,
     enableBackgroundCompletion
 };
+
+export default localAssetManager;

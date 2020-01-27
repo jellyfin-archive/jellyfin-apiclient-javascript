@@ -10,8 +10,8 @@ export function nf(value: any, msg: string): void | never {
 type NeverNull<T> = T extends null
     ? never
     : T extends undefined
-    ? never
-    : undefined;
+        ? never
+        : undefined;
 
 /**
  * Helper for "variable x should not be null or undefined"
@@ -21,6 +21,13 @@ export function snbn<T>(name: string, value: T): NeverNull<T> {
         throw new Error(`${name} should not be null or undefined`);
     }
     return undefined as NeverNull<T>;
+}
+
+/**
+ * Returns a rejected Promise with a specified error message
+ */
+export function rj(msg: string) {
+    return Promise.reject(new Error(msg));
 }
 
 export function getDateParamValue(date: Date) {
