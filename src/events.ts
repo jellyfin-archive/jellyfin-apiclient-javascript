@@ -1,4 +1,6 @@
-﻿function getCallbacks(obj, name) {
+﻿type Callback = (...args: any[]) => any;
+
+function getCallbacks(obj: any, name: string): Callback[] {
 
     if (!obj) {
         throw new Error("obj cannot be null!");
@@ -18,15 +20,14 @@
 
 export default {
 
-    on(obj, eventName, fn) {
+    on(obj: any, eventName: string, fn: Callback) {
 
         const list = getCallbacks(obj, eventName);
 
         list.push(fn);
     },
 
-    off(obj, eventName, fn) {
-
+    off(obj: any, eventName: string, fn: Callback) {
         const list = getCallbacks(obj, eventName);
 
         const i = list.indexOf(fn);
@@ -36,7 +37,6 @@ export default {
     },
 
     trigger(obj: any, eventName: string, ...additionalArgs: any[]) {
-
         const eventObject = {
             type: eventName
         };

@@ -1,0 +1,42 @@
+import { Optional } from "../../types";
+import { AccessSchedule } from "../configuration/AccessSchedule";
+import { UnratedItem } from "../configuration/UnratedItem";
+
+export interface UserPolicy {
+    IsAdministrator: boolean;
+    IsHidden: boolean;
+    IsDisabled: boolean;
+    MaxParentalRating: Optional<number>;
+    BlockedTags: string[];
+    EnableUserPreferenceAccess: boolean;
+    AccessSchedules: AccessSchedule[];
+    BlockUnratedItems: UnratedItem[];
+    EnableRemoteControlOfOtherUsers: boolean;
+    EnableSharedDeviceControl: boolean;
+    EnableRemoteAccess: boolean;
+    EnableLiveTvManagement: boolean;
+    EnableLiveTvAccess: boolean;
+    EnableMediaPlayback: boolean;
+    EnableAudioPlaybackTranscoding: boolean;
+    EnableVideoPlaybackTranscoding: boolean;
+    EnablePlaybackRemuxing: boolean;
+    EnableContentDeletion: boolean;
+    EnableContentDeletionFromFolders: string[];
+    EnableContentDownloading: boolean;
+    EnableSyncTranscoding: boolean;
+    EnableMediaConversion: boolean;
+    EnabledDevices: string[];
+    EnableAllDevices: boolean;
+    EnabledChannels: string[];
+    EnableAllChannels: boolean;
+    EnabledFolders: string[];
+    EnableAllFolders: boolean;
+    InvalidLoginAttemptCount: number;
+    LoginAttemptsBeforeLockout: number;
+    EnablePublicSharing: boolean;
+    BlockedMediaFolders: Optional<string[]>;
+    BlockedChannels: Optional<string[]>;
+    RemoteClientBitrateLimit: number;
+    AuthenticationProviderId: Optional<string>;
+    PasswordResetProviderId: Optional<string>;
+}

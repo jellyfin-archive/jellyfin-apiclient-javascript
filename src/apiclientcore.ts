@@ -1,20 +1,40 @@
 import ApiClient from "./apiclient";
 import { AppStorage } from "./appStorage";
 import LocalAssetManager from "./localassetmanager";
-import { Item, Optional, UrlOptions } from "./types";
-import { rj } from "./utils";
+import {
+    AllThemeMediaResult,
+    BaseItemDto,
+    BaseItemsRequest,
+    GetEpisodes,
+    GetNextUpEpisodes,
+    GetPlaybackInfo,
+    GetSeasons,
+    GetSimilarItems,
+    GetUserViews,
+    ImageRequest,
+    MediaType,
+    Optional,
+    PlaybackInfoResponse,
+    PlaybackProgressInfo,
+    PlaybackStartInfo,
+    PlaybackStopInfo,
+    QueryResult,
+    UserAction,
+    UserActionType
+} from "./types";
+import { assertNotNullish } from "./utils";
 
 const localPrefix = "local:";
 const localViewPrefix = "localview:";
 
-function isLocalId(str: any) {
+function isLocalId(str: Optional<string>) {
     if (typeof str !== "string") {
         return false;
     }
     return startsWith(str, localPrefix);
 }
 
-function isLocalViewId(str: any) {
+function isLocalViewId(str: Optional<string>) {
     if (typeof str !== "string") {
         return false;
     }
@@ -30,6 +50,10 @@ function stripLocalPrefix(str: string) {
     res = stripStart(res, localViewPrefix);
 
     return res;
+}
+
+export interface GetUserViewsLocalOptions extends GetUserViews {
+    EnableLocalView?: Optional<boolean>;
 }
 
 function startsWith(str: null | undefined, find: Optional<string>): false;
@@ -54,10 +78,11 @@ function stripStart<T extends Optional<string>>(
     return str;
 }
 
-function createEmptyList() {
+function createEmptyList(): QueryResult<any> {
     return {
         Items: [],
-        TotalRecordCount: 0
+        TotalRecordCount: 0,
+        StartIndex: 0
     };
 }
 
@@ -76,13 +101,13 @@ function convertGuidToLocal(guid: Optional<string>): string | null {
     return `local:${guid}`;
 }
 
-function adjustGuidProperties(downloadedItem: Item) {
-    downloadedItem.Id = convertGuidToLocal(downloadedItem.Id);
-    downloadedItem.SeriesId = convertGuidToLocal(downloadedItem.SeriesId);
-    downloadedItem.SeasonId = convertGuidToLocal(downloadedItem.SeasonId);
+function adjustGuidProperties(downloadedItem: BaseItemDto) {
+    downloadedItem.Id = convertGuidToLocal(downloadedItem.Id)!;
+    downloadedItem.SeriesId = convertGuidToLocal(downloadedItem.SeriesId)!;
+    downloadedItem.SeasonId = convertGuidToLocal(downloadedItem.SeasonId)!;
 
-    downloadedItem.AlbumId = convertGuidToLocal(downloadedItem.AlbumId);
-    downloadedItem.ParentId = convertGuidToLocal(downloadedItem.ParentId);
+    downloadedItem.AlbumId = convertGuidToLocal(downloadedItem.AlbumId)!;
+    downloadedItem.ParentId = convertGuidToLocal(downloadedItem.ParentId)!;
     downloadedItem.ParentThumbItemId = convertGuidToLocal(
         downloadedItem.ParentThumbItemId
     );
@@ -102,13 +127,8 @@ function adjustGuidProperties(downloadedItem: Item) {
     downloadedItem.ParentBackdropImageTags = null;
 }
 
-/**
- * Creates a new api client instance
- * @param {String} serverAddress
- * @param {String} clientName s
- * @param {String} applicationVersion
- */
 class ApiClientEx extends ApiClient {
+    public downloadsTitleText: string = "Downloads";
     private localAssetManager: typeof LocalAssetManager;
 
     constructor(
@@ -133,38 +153,22 @@ class ApiClientEx extends ApiClient {
         this.localAssetManager = localAssetManager;
     }
 
-    public getPlaybackInfo(
+    public async getPlaybackInfo(
         itemId: string,
-        options: UrlOptions,
-        deviceProfile: any
-    ) {
-        const sid = this.requireServerInfo.Id;
+        options: GetPlaybackInfo = {}
+    ): Promise<PlaybackInfoResponse> {
+        assertNotNullish("itemId", itemId);
 
-        const onFailure = () =>
-            super.getPlaybackInfo(itemId, options, deviceProfile);
+        const sid = this.serverInfo?.Id;
+        assertNotNullish("sid", sid);
 
-        if (isLocalId(itemId)) {
-            return this.localAssetManager
-                .getLocalItem(sid!!, stripLocalPrefix(itemId))
-                .then(item => {
-                    // TODO: This was already done during the sync process, right? If so, remove it
-                    const mediaSources = item.Item.MediaSources.map(m => {
-                        m.SupportsDirectPlay = true;
-                        m.SupportsDirectStream = false;
-                        m.SupportsTranscoding = false;
-                        m.IsLocal = true;
-                        return m;
-                    });
-
-                    return {
-                        MediaSources: mediaSources
-                    };
-                }, onFailure);
-        }
-
-        const instance = this;
-        return this.localAssetManager.getLocalItem(sid!!, itemId).then(item => {
-            if (item) {
+        try {
+            if (isLocalId(itemId)) {
+                const item = await this.localAssetManager.getLocalItem(
+                    sid,
+                    stripLocalPrefix(itemId)
+                );
+                // TODO: This was already done during the sync process, right? If so, remove it
                 const mediaSources = item.Item.MediaSources.map(m => {
                     m.SupportsDirectPlay = true;
                     m.SupportsDirectStream = false;
@@ -173,44 +177,55 @@ class ApiClientEx extends ApiClient {
                     return m;
                 });
 
-                return instance.localAssetManager
-                    .fileExists(item.LocalPath)
-                    .then(exists => {
-                        if (exists) {
-                            const res = {
-                                MediaSources: mediaSources
-                            };
-
-                            return Promise.resolve(res);
-                        }
-
-                        return ApiClient.prototype.getPlaybackInfo.call(
-                            instance,
-                            itemId,
-                            options,
-                            deviceProfile
-                        );
-                    }, onFailure);
+                return {
+                    MediaSources: mediaSources,
+                    PlaySessionId: null,
+                    ErrorCode: null
+                };
             }
 
-            return ApiClient.prototype.getPlaybackInfo.call(
-                instance,
-                itemId,
-                options,
-                deviceProfile
-            );
-        }, onFailure);
+            const item = await this.localAssetManager.getLocalItem(sid, itemId);
+            if (item) {
+                const mediaSources = item.Item?.MediaSources!.map(m => {
+                    m.SupportsDirectPlay = true;
+                    m.SupportsDirectStream = false;
+                    m.SupportsTranscoding = false;
+                    m.IsLocal = true;
+                    return m;
+                });
+
+                const exists = await this.localAssetManager.fileExists(
+                    item.LocalPath!
+                );
+                if (exists) {
+                    return {
+                        MediaSources: mediaSources,
+                        PlaySessionId: null,
+                        ErrorCode: null
+                    };
+                }
+            }
+
+            return super.getPlaybackInfo(itemId, options);
+        } catch (err) {
+            return super.getPlaybackInfo(itemId, options);
+        }
     }
 
-    public getItems(userId: string, options: UrlOptions = {}) {
+    public getItems(
+        userId: Optional<string>,
+        options: BaseItemsRequest = {}
+    ): Promise<QueryResult<BaseItemDto>> {
         const serverInfo = this.serverInfo;
+
         let i;
 
         if (serverInfo && options.ParentId === "localview") {
-            return this.getLocalFolders(serverInfo.Id).then(items => {
-                const result = {
+            return this.getLocalFolders(serverInfo.Id!).then(items => {
+                const result: QueryResult<BaseItemDto> = {
                     Items: items,
-                    TotalRecordCount: items.length
+                    TotalRecordCount: items.length,
+                    StartIndex: 0
                 };
 
                 return Promise.resolve(result);
@@ -225,15 +240,16 @@ class ApiClientEx extends ApiClient {
                 isLocalId(options.AlbumIds))
         ) {
             return this.localAssetManager
-                .getViewItems(serverInfo.Id, userId, options)
+                .getViewItems(serverInfo.Id!, userId, options)
                 .then(items => {
                     items.forEach(item => {
                         adjustGuidProperties(item);
                     });
 
-                    const result = {
+                    const result: QueryResult<BaseItemDto> = {
                         Items: items,
-                        TotalRecordCount: items.length
+                        TotalRecordCount: items.length,
+                        StartIndex: 0
                     };
 
                     return Promise.resolve(result);
@@ -241,7 +257,7 @@ class ApiClientEx extends ApiClient {
         } else if (
             options &&
             options.ExcludeItemIds &&
-            options.ExcludeItemIds.length
+            typeof options.ExcludeItemIds === "string"
         ) {
             const exItems = options.ExcludeItemIds.split(",");
 
@@ -250,7 +266,7 @@ class ApiClientEx extends ApiClient {
                     return Promise.resolve(createEmptyList());
                 }
             }
-        } else if (options && options.Ids && options.Ids.length) {
+        } else if (options && options.Ids && typeof options.Ids === "string") {
             const ids = options.Ids.split(",");
             let hasLocal = false;
 
@@ -262,15 +278,14 @@ class ApiClientEx extends ApiClient {
 
             if (hasLocal) {
                 return this.localAssetManager
-                    .getItemsFromIds(serverInfo.Id, ids)
+                    .getItemsFromIds(serverInfo!.Id!, ids)
                     .then(items => {
-                        items.forEach(item => {
-                            adjustGuidProperties(item);
-                        });
+                        items.forEach(adjustGuidProperties);
 
-                        const result = {
+                        const result: QueryResult<BaseItemDto> = {
                             Items: items,
-                            TotalRecordCount: items.length
+                            TotalRecordCount: items.length,
+                            StartIndex: 0
                         };
 
                         return Promise.resolve(result);
@@ -281,383 +296,366 @@ class ApiClientEx extends ApiClient {
         return super.getItems(userId, options);
     }
 
-    public getUserViews(options, userId) {
-        const instance = this;
+    public async getUserViews(
+        options: GetUserViewsLocal,
+        userId: string
+    ): Promise<QueryResult<BaseItemDto>> {
+        assertNotNullish("userId", userId);
 
-        options = options || {};
+        const result = await super.getUserViews(options, userId);
 
-        const basePromise = ApiClient.prototype.getUserViews.call(
-            instance,
-            options,
-            userId
-        );
-
-        if (!options.enableLocalView) {
-            return basePromise;
+        if (options.EnableLocalView && this.serverInfo) {
+            const localView = await this.getLocalView(userId).catch();
+            if (localView) {
+                result.Items.push(localView);
+                result.TotalRecordCount++;
+            }
         }
 
-        return basePromise.then(result => {
-            const serverInfo = instance.serverInfo();
-            if (serverInfo) {
-                return getLocalView(instance, serverInfo.Id, userId).then(
-                    localView => {
-                        if (localView) {
-                            result.Items.push(localView);
-                            result.TotalRecordCount++;
-                        }
-
-                        return Promise.resolve(result);
-                    }
-                );
-            }
-
-            return Promise.resolve(result);
-        });
+        return result;
     }
 
-    public getItem(userId, itemId) {
-        if (!itemId) {
-            throw new Error("null itemId");
-        }
+    public async getItem(
+        userId: Optional<string>,
+        itemId: string
+    ): Promise<BaseItemDto> {
+        assertNotNullish("itemId", itemId);
 
         if (itemId) {
             itemId = itemId.toString();
         }
 
-        let serverInfo;
-
         if (isTopLevelLocalViewId(itemId)) {
-            serverInfo = this.serverInfo();
-
-            if (serverInfo) {
-                return getLocalView(this, serverInfo.Id, userId);
-            }
+            return this.getLocalView(userId);
         }
 
         if (isLocalViewId(itemId)) {
-            serverInfo = this.serverInfo();
-
-            if (serverInfo) {
-                return this.getLocalFolders(serverInfo.Id, userId).then(
-                    items => {
-                        const views = items.filter(item => item.Id === itemId);
-
-                        if (views.length > 0) {
-                            return Promise.resolve(views[0]);
-                        }
-
-                        // TODO: Test consequence of this
-                        return Promise.reject();
-                    }
-                );
+            const items = await this.getLocalFolders(userId);
+            const views = items.filter(item => item.Id === itemId);
+            if (views.length > 0) {
+                return views[0];
             }
+
+            // TODO: Test consequence of this
+            throw new Error();
         }
 
         if (isLocalId(itemId)) {
-            serverInfo = this.serverInfo();
-
-            if (serverInfo) {
-                return this.localAssetManager
-                    .getLocalItem(serverInfo.Id, stripLocalPrefix(itemId))
-                    .then(item => {
-                        adjustGuidProperties(item.Item);
-
-                        return Promise.resolve(item.Item);
-                    });
-            }
+            const item = await this.localAssetManager.getLocalItem(
+                this.requireServerInfo.Id!,
+                stripLocalPrefix(itemId)
+            );
+            adjustGuidProperties(item.Item);
+            return item.Item;
         }
 
-        return ApiClient.prototype.getItem.call(this, userId, itemId);
+        return super.getItem(userId, itemId);
     }
 
-    public getLocalFolders(userId?: string) {
+    public getLocalFolders(userId?: Optional<string>): Promise<BaseItemDto[]> {
         const serverInfo = this.requireServerInfo;
+        assertNotNullish("serverInfo.Id", serverInfo.Id);
+
         userId = userId || serverInfo.UserId;
+        assertNotNullish("userId", userId);
 
         return this.localAssetManager.getViews(serverInfo.Id, userId);
     }
 
-    public getNextUpEpisodes(options: UrlOptions) {
-        if (options.SeriesId) {
+    public async getNextUpEpisodes(
+        options?: GetNextUpEpisodes
+    ): Promise<QueryResult<BaseItemDto>> {
+        if (options && options.SeriesId) {
             if (typeof options.SeriesId !== "string") {
-                return rj("SeriesId has to be a string");
+                throw new Error("SeriesId has to be a string");
             }
             if (isLocalId(options.SeriesId)) {
-                return Promise.resolve(createEmptyList());
+                return createEmptyList();
             }
         }
 
         return super.getNextUpEpisodes(options);
     }
 
-    public getSeasons(itemId: string, options: UrlOptions = {}) {
+    public getSeasons(
+        itemId: string,
+        options?: GetSeasons
+    ): Promise<QueryResult<BaseItemDto>> {
         if (isLocalId(itemId)) {
-            options.SeriesId = itemId;
-            options.IncludeItemTypes = "Season";
-            return this.getItems(this.requireUserId(), options);
+            const itemOptions: BaseItemsRequest = {
+                ...options,
+                SeriesId: itemId,
+                IncludeItemTypes: "Season"
+            };
+
+            return this.getItems(this.requireUserId(), itemOptions);
         }
 
         return super.getSeasons(itemId, options);
     }
 
-    public getEpisodes(itemId: string, options: UrlOptions) {
-        if (isLocalId(options.SeasonId) || isLocalId(options.seasonId)) {
-            options.SeriesId = itemId;
-            options.IncludeItemTypes = "Episode";
-            return this.getItems(this.requireUserId(), options);
+    public getEpisodes(
+        itemId: string,
+        options: GetEpisodes
+    ): Promise<QueryResult<BaseItemDto>> {
+        assertNotNullish("itemId", itemId);
+        assertNotNullish("options", options);
+
+        const itemRequestOptions: BaseItemsRequest = {
+            ...options,
+            SeriesId: itemId,
+            IncludeItemTypes: "Episode"
+        };
+
+        if (isLocalId(options.SeasonId)) {
+            return this.getItems(options.UserId, itemRequestOptions);
         }
 
         // get episodes by recursion
         if (isLocalId(itemId)) {
-            options.SeriesId = itemId;
-            options.IncludeItemTypes = "Episode";
-            return this.getItems(this.requireUserId(), options);
+            itemRequestOptions.Recursive = true;
+            return this.getItems(options.UserId, itemRequestOptions);
         }
 
-        return ApiClient.prototype.getEpisodes.call(this, itemId, options);
+        return super.getEpisodes(itemId, options);
     }
 
-    public getLatestOfflineItems(options: {
-        MediaType?: "Audio" | "Video" | "Photo" | "Book" | "Game";
-        Limit?: number;
-        Filters?: ["IsNotFolder"] | ["IsFolder"];
-    } & UrlOptions = {}) {
-        // Supported options
-        // MediaType - Audio/Video/Photo/Book/Game
-        // Limit
-        // Filters: 'IsNotFolder' or 'IsFolder'
-
+    public async getLatestOfflineItems(options: BaseItemsRequest = {}) {
         options.SortBy = "DateCreated";
         options.SortOrder = "Descending";
 
         const serverInfo = this.serverInfo;
 
         if (serverInfo) {
-            return this.localAssetManager
-                .getViewItems(serverInfo.Id, null, options)
-                .then(items => {
-                    items.forEach(item => {
-                        adjustGuidProperties(item);
-                    });
-
-                    return Promise.resolve(items);
-                });
+            const items = await this.localAssetManager.getViewItems(
+                serverInfo.Id!,
+                null,
+                options
+            );
+            items.forEach(item => {
+                adjustGuidProperties(item);
+            });
+            return items;
         }
 
-        return Promise.resolve([]);
+        return [];
     }
 
-    public getThemeMedia(userId, itemId, inherit) {
+    public async getThemeMedia(
+        userId: Optional<string>,
+        itemId: string,
+        inherit?: boolean
+    ): Promise<AllThemeMediaResult> {
+        assertNotNullish("itemId", itemId);
+
         if (
             isLocalViewId(itemId) ||
             isLocalId(itemId) ||
             isTopLevelLocalViewId(itemId)
         ) {
-            return Promise.reject();
+            throw new Error();
         }
 
-        return ApiClient.prototype.getThemeMedia.call(
-            this,
-            userId,
-            itemId,
-            inherit
-        );
+        return super.getThemeMedia(userId, itemId, inherit);
     }
 
-    public getSpecialFeatures(userId, itemId) {
+    public async getSpecialFeatures(
+        userId: string,
+        itemId: string
+    ): Promise<BaseItemDto[]> {
+        assertNotNullish("userId", userId);
+        assertNotNullish("itemId", itemId);
+
         if (isLocalId(itemId)) {
-            return Promise.resolve([]);
+            return [];
         }
 
-        return ApiClient.prototype.getSpecialFeatures.call(
-            this,
-            userId,
-            itemId
-        );
+        return super.getSpecialFeatures(userId, itemId);
     }
 
-    public getSimilarItems(itemId, options) {
+    public async getSimilarItems(
+        itemId: string,
+        options?: GetSimilarItems
+    ): Promise<QueryResult<BaseItemDto>> {
+        assertNotNullish("itemId", itemId);
+
         if (isLocalId(itemId)) {
-            return Promise.resolve(createEmptyList());
+            return createEmptyList();
         }
 
-        return ApiClient.prototype.getSimilarItems.call(this, itemId, options);
+        return super.getSimilarItems(itemId, options);
     }
 
-    public updateFavoriteStatus(userId, itemId, isFavorite) {
+    public async updateFavoriteStatus(
+        userId: string,
+        itemId: string,
+        isFavorite: boolean
+    ): Promise<void> {
+        assertNotNullish("userId", userId);
+        assertNotNullish("itemId", itemId);
+        assertNotNullish("isFavorite", isFavorite);
+
         if (isLocalId(itemId)) {
-            return Promise.resolve();
+            return;
         }
 
-        return ApiClient.prototype.updateFavoriteStatus.call(
-            this,
-            userId,
-            itemId,
-            isFavorite
-        );
+        return super.updateFavoriteStatus(userId, itemId, isFavorite);
     }
 
-    public getScaledImageUrl(itemId, options) {
-        if (
-            isLocalId(itemId) ||
-            (options && options.itemid && isLocalId(options.itemid))
-        ) {
-            const serverInfo = this.serverInfo();
+    public getScaledImageUrl(itemId: string, options: ImageRequest): string {
+        assertNotNullish("itemId", itemId);
+        assertNotNullish("options", options);
+        assertNotNullish("options.Type", options.Type);
+
+        if (isLocalId(itemId)) {
+            const serverInfo = this.requireServerInfo;
             const id = stripLocalPrefix(itemId);
 
             return this.localAssetManager.getImageUrl(
-                serverInfo.Id,
+                serverInfo.Id!,
                 id,
                 options
             );
         }
 
-        return ApiClient.prototype.getScaledImageUrl.call(
-            this,
-            itemId,
-            options
-        );
+        return super.getScaledImageUrl(itemId, options);
     }
 
-    public reportPlaybackStart(options) {
-        if (!options) {
-            throw new Error("null options");
-        }
+    public async reportPlaybackStart(
+        options: PlaybackStartInfo
+    ): Promise<void> {
+        assertNotNullish("options", options);
 
         if (isLocalId(options.ItemId)) {
-            return Promise.resolve();
+            return;
         }
 
-        return ApiClient.prototype.reportPlaybackStart.call(this, options);
+        return super.reportPlaybackStart(options);
     }
 
-    public reportPlaybackProgress(options) {
-        if (!options) {
-            throw new Error("null options");
-        }
+    public async reportPlaybackProgress(
+        options: PlaybackProgressInfo
+    ): Promise<void> {
+        assertNotNullish("options", options);
 
         if (isLocalId(options.ItemId)) {
-            const serverInfo = this.serverInfo();
+            const serverInfo = this.serverInfo;
 
             if (serverInfo) {
-                const instance = this;
-                return this.localAssetManager
-                    .getLocalItem(
-                        serverInfo.Id,
-                        stripLocalPrefix(options.ItemId)
-                    )
-                    .then(item => {
-                        const libraryItem = item.Item;
+                const item = await this.localAssetManager.getLocalItem(
+                    serverInfo.Id!,
+                    stripLocalPrefix(options.ItemId)
+                );
+                const libraryItem = item.Item!;
 
-                        if (
-                            libraryItem.MediaType === "Video" ||
-                            libraryItem.Type === "AudioBook"
-                        ) {
-                            libraryItem.UserData = libraryItem.UserData || {};
-                            libraryItem.UserData.PlaybackPositionTicks =
-                                options.PositionTicks;
-                            libraryItem.UserData.PlayedPercentage = Math.min(
-                                libraryItem.RunTimeTicks
-                                    ? 100 *
-                                          ((options.PositionTicks || 0) /
-                                              libraryItem.RunTimeTicks)
-                                    : 0,
-                                100
-                            );
-                            return instance.localAssetManager.addOrUpdateLocalItem(
-                                item
-                            );
-                        }
-
-                        return Promise.resolve();
-                    });
+                if (
+                    libraryItem.MediaType === MediaType.Video ||
+                    libraryItem.Type === "AudioBook"
+                ) {
+                    libraryItem.UserData = {
+                        Rating: null,
+                        UnplayedItemCount: null,
+                        PlayCount: 0,
+                        IsFavorite: false,
+                        Likes: null,
+                        LastPlayedDate: null,
+                        Played: false,
+                        Key: null,
+                        ItemId: libraryItem.Id,
+                        ...libraryItem.UserData,
+                        PlaybackPositionTicks: options.PositionTicks || 0,
+                        PlayedPercentage: Math.min(
+                            libraryItem.RunTimeTicks
+                                ? 100 *
+                                      ((options.PositionTicks || 0) /
+                                          libraryItem.RunTimeTicks)
+                                : 0,
+                            100
+                        )
+                    };
+                    await this.localAssetManager.addOrUpdateLocalItem(item);
+                }
             }
 
-            return Promise.resolve();
+            return;
         }
 
-        return ApiClient.prototype.reportPlaybackProgress.call(this, options);
+        return super.reportPlaybackProgress(options);
     }
 
-    public reportPlaybackStopped(options) {
-        if (!options) {
-            throw new Error("null options");
-        }
+    public reportPlaybackStopped(options: PlaybackStopInfo): Promise<void> {
+        assertNotNullish("options", options);
 
         if (isLocalId(options.ItemId)) {
-            const serverInfo = this.serverInfo();
+            const serverInfo = this.requireServerInfo;
 
-            const action = {
+            const action: UserAction = {
+                Id: null,
                 Date: new Date().getTime(),
                 ItemId: stripLocalPrefix(options.ItemId),
                 PositionTicks: options.PositionTicks,
                 ServerId: serverInfo.Id,
-                Type: 0, // UserActionType.PlayedItem
-                UserId: this.getCurrentUserId()
+                Type: UserActionType.PlayedItem,
+                UserId: this.requireUserId()
             };
 
             return this.localAssetManager.recordUserAction(action);
         }
 
-        return ApiClient.prototype.reportPlaybackStopped.call(this, options);
+        return super.reportPlaybackStopped(options);
     }
 
-    public getIntros(itemId) {
+    public async getIntros(itemId: string): Promise<QueryResult<BaseItemDto>> {
         if (isLocalId(itemId)) {
-            return Promise.resolve({
-                Items: [],
-                TotalRecordCount: 0
-            });
+            return createEmptyList();
         }
 
-        return ApiClient.prototype.getIntros.call(this, itemId);
+        return super.getIntros(itemId);
     }
 
-    public getInstantMixFromItem(itemId, options) {
+    public async getInstantMixFromItem(
+        itemId: string,
+        options?: GetSimilarItems
+    ): Promise<QueryResult<BaseItemDto>> {
         if (isLocalId(itemId)) {
-            return Promise.resolve({
-                Items: [],
-                TotalRecordCount: 0
-            });
+            return createEmptyList();
         }
 
-        return ApiClient.prototype.getInstantMixFromItem.call(
-            this,
-            itemId,
-            options
-        );
+        return super.getInstantMixFromItem(itemId, options);
     }
 
-    public getItemDownloadUrl(itemId) {
+    public async getItemDownloadUrl(itemId: string): Promise<string> {
         if (isLocalId(itemId)) {
-            const serverInfo = this.serverInfo();
+            const serverInfo = this.requireServerInfo;
 
             if (serverInfo) {
-                return this.localAssetManager
-                    .getLocalItem(serverInfo.Id, stripLocalPrefix(itemId))
-                    .then(item => Promise.resolve(item.LocalPath));
+                const item = await this.localAssetManager.getLocalItem(
+                    serverInfo.Id!,
+                    stripLocalPrefix(itemId)
+                );
+                return item.LocalPath!;
             }
         }
 
-        return ApiClient.prototype.getItemDownloadUrl.call(this, itemId);
+        return super.getItemDownloadUrl(itemId);
     }
 
-    private getLocalView(serverId, userId) {
-        return this.getLocalFolders(serverId, userId).then(views => {
-            let localView = null;
+    private async getLocalView(
+        userId?: Optional<string>
+    ): Promise<BaseItemDto> {
+        const views = await this.getLocalFolders(userId);
 
-            if (views.length > 0) {
-                localView = {
-                    Name: instance.downloadsTitleText || "Downloads",
-                    ServerId: serverId,
-                    Id: "localview",
-                    Type: "localview",
-                    IsFolder: true
-                };
-            }
+        if (views.length === 0) {
+            throw new Error("Local view not found");
+        }
 
-            return Promise.resolve(localView);
-        });
+        return {
+            Name: this.downloadsTitleText,
+            ServerId: this.requireServerInfo.Id,
+            Id: "localview",
+            Type: "localview",
+            IsFolder: true
+        };
     }
 }
 

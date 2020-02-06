@@ -1,9 +1,6 @@
-// Database name
-import { TBA1 } from "../types";
+import { UserAction } from "../types/models/users/UserAction";
 
 const dbName = "useractions";
-
-// Database version
 const dbVersion = 1;
 
 let databaseInstance: IDBDatabase | undefined;
@@ -36,19 +33,16 @@ function getDb() {
             };
         };
 
-        request.onsuccess = function() {
-            resolve((databaseInstance = this.result));
-        };
+        request.onsuccess = () => resolve((databaseInstance = request.result));
     });
 }
 
-function getByServerId(serverId: string): Promise<TBA1[]> {
-    return getAll().then(items =>
-        items.filter(item => item.ServerId === serverId)
-    );
+async function getByServerId(serverId: string): Promise<UserAction[]> {
+    const items = await getAll();
+    return items.filter(item => item.ServerId === serverId);
 }
 
-function getAll(): Promise<TBA1[]> {
+function getAll(): Promise<UserAction[]> {
     return new Promise(async (resolve, reject) => {
         const db = await getDb();
         const storeName = dbName;
@@ -60,14 +54,11 @@ function getAll(): Promise<TBA1[]> {
             // IDBObjectStore.getAll() will return the full set of items in our store.
             const request = objectStore.getAll(null, 10000);
 
-            request.onsuccess = function() {
-                resolve(this.result);
-            };
-
+            request.onsuccess = () => resolve(request.result);
             request.onerror = reject;
         } else {
             // Fallback to the traditional cursor approach if getAll isn't supported.
-            const results: TBA1[] = [];
+            const results: UserAction[] = [];
             const request = (objectStore as IDBObjectStore).openCursor();
 
             request.onsuccess = function() {
@@ -85,10 +76,7 @@ function getAll(): Promise<TBA1[]> {
     });
 }
 
-// TODO: Narrow type
-type Key = any;
-
-function get(key: Key) {
+function get(key: IDBValidKey): Promise<UserAction | undefined> {
     return new Promise(async (resolve, reject) => {
         const db = await getDb();
         const storeName = dbName;
@@ -98,15 +86,11 @@ function get(key: Key) {
         const request = objectStore.get(key);
 
         request.onerror = reject;
-
-        request.onsuccess = event => {
-            // Do something with the request.result!
-            resolve(request.result);
-        };
+        request.onsuccess = () => resolve(request.result);
     });
 }
 
-function set(key: Key, val: TBA1) {
+function set(key: IDBValidKey, val: UserAction): Promise<void> {
     return new Promise(async (resolve, reject) => {
         const db = await getDb();
 
@@ -117,11 +101,11 @@ function set(key: Key, val: TBA1) {
         const request = objectStore.put(val, key);
 
         request.onerror = reject;
-        request.onsuccess = resolve;
+        request.onsuccess = () => resolve();
     });
 }
 
-function remove(key: Key) {
+function remove(key: IDBValidKey): Promise<void> {
     return new Promise(async (resolve, reject) => {
         const db = await getDb();
         const storeName = dbName;
@@ -131,11 +115,11 @@ function remove(key: Key) {
         const request = objectStore.delete(key);
 
         request.onerror = reject;
-        request.onsuccess = resolve;
+        request.onsuccess = () => resolve();
     });
 }
 
-function clear() {
+function clear(): Promise<void> {
     return new Promise(async (resolve, reject) => {
         const db = await getDb();
         const storeName = dbName;
@@ -145,7 +129,7 @@ function clear() {
         const request = objectStore.clear();
 
         request.onerror = reject;
-        request.onsuccess = resolve;
+        request.onsuccess = () => resolve();
     });
 }
 

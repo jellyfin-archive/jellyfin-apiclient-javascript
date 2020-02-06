@@ -1,15 +1,82 @@
+import { ApiClient } from "./apiclient";
+import { AppStorage } from "./appStorage";
+import Credentials from "./credentials";
 import events from "./events";
+import {
+    AuthenticationResult,
+    BaseItemDto,
+    ConnectionMode,
+    ImageType,
+    JsonRequestOptions,
+    Optional,
+    PostFullCapabilities,
+    PublicSystemInfo,
+    RequestOptions,
+    ServerDiscoveryInfo,
+    ServerInfo,
+    SystemInfo,
+    UserDto,
+    WebSocketMessage
+} from "./types";
+import { assertNotNullish } from "./utils";
 
 const defaultTimeout = 20000;
 
-const ConnectionMode = {
-    Local: 0,
-    Remote: 1,
-    Manual: 2
-};
+export interface LocalUser {
+    Id?: Optional<string>;
+    PrimaryImageTag?: Optional<string>;
+    localUser: UserDto;
+    name: Optional<string>;
+    imageUrl: Optional<string>;
+    supportsImageParams: boolean;
+}
 
-function getServerAddress(server, mode) {
+interface ServerAddress {
+    url: string;
+    mode: ConnectionMode;
+    timeout: number;
+}
 
+interface ImageUrl {
+    url: string | null;
+    supportsParams: boolean;
+}
+
+interface ConnectOptions {
+    enableAutoLogin?: boolean;
+    updateDateLastAccessed?: boolean;
+    enableAutomaticBitrateDetection?: boolean;
+    reportCapabilities?: boolean;
+    enableWebSocket?: boolean;
+}
+
+interface ConnectResult {
+    Servers?: ServerInfo[];
+    ApiClient?: ApiClient;
+    State: ConnectState;
+}
+
+enum ConnectState {
+    SignedIn = "SignedIn",
+    ServerSignIn = "ServerSignIn",
+    ServerSelection = "ServerSelection",
+    Unavailable = "Unavailable",
+    ServerUpdateNeeded = "ServerUpdateNeeded"
+}
+
+interface ReconnectState {
+    numAddresses: number;
+    rejects: number;
+    resolved: boolean;
+}
+
+interface ReconnectResult {
+    url: string;
+    connectionMode: ConnectionMode;
+    data: PublicSystemInfo;
+}
+
+function getServerAddress(server: ServerInfo, mode?: Optional<ConnectionMode>) {
     switch (mode) {
         case ConnectionMode.Local:
             return server.LocalAddress;
@@ -18,43 +85,46 @@ function getServerAddress(server, mode) {
         case ConnectionMode.Remote:
             return server.RemoteAddress;
         default:
-            return server.ManualAddress || server.LocalAddress || server.RemoteAddress;
+            return (
+                server.ManualAddress ||
+                server.LocalAddress ||
+                server.RemoteAddress
+            );
     }
 }
 
-function paramsToString(params) {
-
+function paramsToString(params: Record<string, any>) {
     const values = [];
 
     for (const key in params) {
+        if (!params.hasOwnProperty(key)) {
+            continue;
+        }
 
         const value = params[key];
 
         if (value !== null && value !== undefined && value !== "") {
-            values.push(`${encodeURIComponent(key)}=${encodeURIComponent(value)}`);
+            values.push(
+                `${encodeURIComponent(key)}=${encodeURIComponent(value)}`
+            );
         }
     }
     return values.join("&");
 }
 
-function resolveFailure(instance, resolve) {
-
-    resolve({
-        State: "Unavailable"
-    });
-}
-
-function mergeServers(credentialProvider, list1, list2) {
-
-    for (let i = 0, length = list2.length; i < length; i++) {
-        credentialProvider.addOrUpdateServer(list1, list2[i]);
+function mergeServers(
+    credentialProvider: Credentials,
+    a: ServerInfo[],
+    b: ServerInfo[]
+) {
+    for (let i = 0, length = b.length; i < length; i++) {
+        credentialProvider.addOrUpdateServer(a, b[i]);
     }
 
-    return list1;
+    return a;
 }
 
-function updateServerInfo(server, systemInfo) {
-
+function updateServerInfo(server: ServerInfo, systemInfo: PublicSystemInfo) {
     server.Name = systemInfo.ServerName;
 
     if (systemInfo.Id) {
@@ -63,24 +133,24 @@ function updateServerInfo(server, systemInfo) {
     if (systemInfo.LocalAddress) {
         server.LocalAddress = systemInfo.LocalAddress;
     }
-    if (systemInfo.WanAddress) {
-        server.RemoteAddress = systemInfo.WanAddress;
+    // TODO: WanAddress was removed as we thought it wasn't used, leaving it for the moment till we find out the impact
+    if ((systemInfo as any).WanAddress) {
+        server.RemoteAddress = (systemInfo as any).WanAddress;
     }
 }
 
-function getEmbyServerUrl(baseUrl, handler) {
+function getEmbyServerUrl(baseUrl: string, handler: string) {
     return `${baseUrl}/emby/${handler}`;
 }
 
-function getFetchPromise(request) {
-
-    const headers = request.headers || {};
+function getFetchPromise(request: RequestOptions): Promise<Response> {
+    const headers: Record<string, string> = request.headers || {};
 
     if (request.dataType === "json") {
         headers.accept = "application/json";
     }
 
-    const fetchRequest = {
+    const fetchRequest: RequestInit = {
         headers,
         method: request.type,
         credentials: "same-origin"
@@ -89,18 +159,18 @@ function getFetchPromise(request) {
     let contentType = request.contentType;
 
     if (request.data) {
-
         if (typeof request.data === "string") {
             fetchRequest.body = request.data;
         } else {
             fetchRequest.body = paramsToString(request.data);
 
-            contentType = contentType || "application/x-www-form-urlencoded; charset=UTF-8";
+            contentType =
+                contentType ||
+                "application/x-www-form-urlencoded; charset=UTF-8";
         }
     }
 
     if (contentType) {
-
         headers["Content-Type"] = contentType;
     }
 
@@ -111,73 +181,84 @@ function getFetchPromise(request) {
     return fetchWithTimeout(request.url, fetchRequest, request.timeout);
 }
 
-function fetchWithTimeout(url, options, timeoutMs) {
-
+function fetchWithTimeout(
+    url: string,
+    options: Optional<RequestInit>,
+    timeoutMs: number
+): Promise<Response> {
     console.log(`fetchWithTimeout: timeoutMs: ${timeoutMs}, url: ${url}`);
 
     return new Promise((resolve, reject) => {
-
         const timeout = setTimeout(reject, timeoutMs);
 
         options = options || {};
         options.credentials = "same-origin";
 
-        fetch(url, options).then(response => {
-            clearTimeout(timeout);
+        fetch(url, options).then(
+            response => {
+                clearTimeout(timeout);
 
-            console.log(`fetchWithTimeout: succeeded connecting to url: ${url}`);
+                console.log(
+                    `fetchWithTimeout: succeeded connecting to url: ${url}`
+                );
 
-            resolve(response);
-        }, error => {
+                resolve(response);
+            },
+            _error => {
+                clearTimeout(timeout);
 
-            clearTimeout(timeout);
+                console.log(
+                    `fetchWithTimeout: timed out connecting to url: ${url}`
+                );
 
-            console.log(`fetchWithTimeout: timed out connecting to url: ${url}`);
-
-            reject();
-        });
+                reject();
+            }
+        );
     });
 }
 
-function ajax(request) {
-
-    if (!request) {
-        throw new Error("Request cannot be null");
-    }
+async function ajax<T = any>(request: JsonRequestOptions): Promise<T>;
+async function ajax(request: RequestOptions): Promise<Response> {
+    assertNotNullish("request", request);
 
     request.headers = request.headers || {};
 
     console.log(`ConnectionManager requesting url: ${request.url}`);
 
-    return getFetchPromise(request).then(response => {
+    try {
+        const response = await getFetchPromise(request);
+        console.log(
+            `ConnectionManager response status: ${response.status}, url: ${request.url}`
+        );
 
-        console.log(`ConnectionManager response status: ${response.status}, url: ${request.url}`);
-
-        if (response.status < 400) {
-
-            if (request.dataType === "json" || request.headers.accept === "application/json") {
-                return response.json();
-            } else {
-                return response;
-            }
-        } else {
-            return Promise.reject(response);
+        if (response.status >= 400) {
+            throw response;
         }
 
-    }, err => {
+        if (
+            request.dataType === "json" ||
+            request.headers.accept === "application/json"
+        ) {
+            return response.json();
+        }
 
+        return response;
+    } catch (err) {
         console.log(`ConnectionManager request failed to url: ${request.url}`);
         throw err;
-    });
+    }
 }
 
-function replaceAll(originalString, strReplace, strWith) {
+function replaceAll(
+    originalString: string,
+    strReplace: string,
+    strWith: string
+) {
     const reg = new RegExp(strReplace, "ig");
     return originalString.replace(reg, strWith);
 }
 
-function normalizeAddress(address) {
-
+function normalizeAddress(address: string) {
     // attempt to correct bad input
     address = address.trim();
 
@@ -192,22 +273,24 @@ function normalizeAddress(address) {
     return address;
 }
 
-function stringEqualsIgnoreCase(str1, str2) {
-
-    return (str1 || "").toLowerCase() === (str2 || "").toLowerCase();
+function stringEqualsIgnoreCase(a: Optional<string>, b: Optional<string>) {
+    return (a ?? "").toLowerCase() === (b ?? "").toLowerCase();
 }
 
-function compareVersions(a, b) {
-
+function compareVersions(a: string, b: string) {
     // -1 a is smaller
     // 1 a is larger
     // 0 equal
-    a = a.split(".");
-    b = b.split(".");
+    const aParts = a.split(".");
+    const bParts = b.split(".");
 
-    for (let i = 0, length = Math.max(a.length, b.length); i < length; i++) {
-        const aVal = parseInt(a[i] || "0");
-        const bVal = parseInt(b[i] || "0");
+    for (
+        let i = 0, length = Math.max(aParts.length, bParts.length);
+        i < length;
+        i++
+    ) {
+        const aVal = parseInt(aParts[i] || "0", 10);
+        const bVal = parseInt(bParts[i] || "0", 10);
 
         if (aVal < bVal) {
             return -1;
@@ -221,681 +304,355 @@ function compareVersions(a, b) {
     return 0;
 }
 
-export default class ConnectionManager {
-    constructor(
-        credentialProvider,
-        appStorage,
-        apiClientFactory,
-        serverDiscoveryFn,
-        appName,
-        appVersion,
-        deviceName,
-        deviceId,
-        capabilities,
-        devicePixelRatio) {
+export interface NativeShell {
+    version: number;
 
+    // AppHost: AppHost;
+    // FileSystem?: FileSystem;
+
+    enableFullscreen(): void;
+    disableFullscreen(): void;
+
+    getPlugins(): Promise<string[]>;
+    findServers?(timeout: number): Promise<ServerDiscoveryInfo[]>;
+    openUrl(url: string): void;
+}
+
+export default class ConnectionManager {
+    public onLocalUserSignedIn?: Optional<(user: UserDto) => Promise<void>>;
+    private _apiClients: ApiClient[] = [];
+    private _minServerVersion = "3.2.33";
+    private _appName: string;
+    private _appVersion: string;
+    private _capabilities: PostFullCapabilities;
+    private _credentialProvider: Credentials;
+
+    constructor(
+        credentialProvider: Credentials,
+        private appStorage: AppStorage,
+        private apiClientFactory: typeof ApiClient,
+        private serverDiscoveryFn: NativeShell,
+        appName: string,
+        appVersion: string,
+        private deviceName: string,
+        private deviceId: string,
+        capabilities: PostFullCapabilities,
+        private devicePixelRatio: number
+    ) {
         console.log("Begin ConnectionManager constructor");
 
-        const self = this;
-        this._apiClients = [];
-
-        self._minServerVersion = "3.2.33";
-
-        self.appVersion = () => appVersion;
-
-        self.appName = () => appName;
-
-        self.capabilities = () => capabilities;
-
-        self.deviceId = () => deviceId;
-
-        self.credentialProvider = () => credentialProvider;
-
-        self.getServerInfo = id => {
-
-            const servers = credentialProvider.credentials().Servers;
-
-            return servers.filter(s => s.Id === id)[0];
-        };
-
-        self.getLastUsedServer = () => {
-
-            const servers = credentialProvider.credentials().Servers;
-
-            servers.sort((a, b) => (b.DateLastAccessed || 0) - (a.DateLastAccessed || 0));
-
-            if (!servers.length) {
-                return null;
-            }
-
-            return servers[0];
-        };
-
-        self.addApiClient = apiClient => {
-
-            self._apiClients.push(apiClient);
-
-            const existingServers = credentialProvider.credentials().Servers.filter(s => stringEqualsIgnoreCase(s.ManualAddress, apiClient.serverAddress()) ||
-                stringEqualsIgnoreCase(s.LocalAddress, apiClient.serverAddress()) ||
-                stringEqualsIgnoreCase(s.RemoteAddress, apiClient.serverAddress()));
-
-            const existingServer = existingServers.length ? existingServers[0] : apiClient.serverInfo();
-            existingServer.DateLastAccessed = new Date().getTime();
-            existingServer.LastConnectionMode = ConnectionMode.Manual;
-            existingServer.ManualAddress = apiClient.serverAddress();
-
-            if (apiClient.manualAddressOnly) {
-                existingServer.manualAddressOnly = true;
-            }
-
-            apiClient.serverInfo(existingServer);
-
-            apiClient.onAuthenticated = (instance, result) => onAuthenticated(instance, result, {}, true);
-
-            if (!existingServers.length) {
-                const credentials = credentialProvider.credentials();
-                credentials.Servers = [existingServer];
-                credentialProvider.credentials(credentials);
-            }
-
-            events.trigger(self, "apiclientcreated", [apiClient]);
-        };
-
-        self.clearData = () => {
-
-            console.log("connection manager clearing data");
-
-            const credentials = credentialProvider.credentials();
-            credentials.Servers = [];
-            credentialProvider.credentials(credentials);
-        };
-
-        self._getOrAddApiClient = (server, serverUrl) => {
-
-            let apiClient = self.getApiClient(server.Id);
-
-            if (!apiClient) {
-
-                apiClient = new apiClientFactory(serverUrl, appName, appVersion, deviceName, deviceId, devicePixelRatio);
-
-                self._apiClients.push(apiClient);
-
-                apiClient.serverInfo(server);
-
-                apiClient.onAuthenticated = (instance, result) => {
-                    return onAuthenticated(instance, result, {}, true);
-                };
-
-                events.trigger(self, "apiclientcreated", [apiClient]);
-            }
-
-            console.log("returning instance from getOrAddApiClient");
-            return apiClient;
-        };
-
-        self.getOrCreateApiClient = serverId => {
-
-            const credentials = credentialProvider.credentials();
-            const servers = credentials.Servers.filter(s => stringEqualsIgnoreCase(s.Id, serverId));
-
-            if (!servers.length) {
-                throw new Error(`Server not found: ${serverId}`);
-            }
-
-            const server = servers[0];
-
-            return self._getOrAddApiClient(server, getServerAddress(server, server.LastConnectionMode));
-        };
-
-        function onAuthenticated(apiClient, result, options, saveCredentials) {
-
-            const credentials = credentialProvider.credentials();
-            const servers = credentials.Servers.filter(s => s.Id === result.ServerId);
-
-            const server = servers.length ? servers[0] : apiClient.serverInfo();
-
-            if (options.updateDateLastAccessed !== false) {
-                server.DateLastAccessed = new Date().getTime();
-            }
-            server.Id = result.ServerId;
-
-            if (saveCredentials) {
-                server.UserId = result.User.Id;
-                server.AccessToken = result.AccessToken;
-            } else {
-                server.UserId = null;
-                server.AccessToken = null;
-            }
-
-            credentialProvider.addOrUpdateServer(credentials.Servers, server);
-            credentialProvider.credentials(credentials);
-
-            // set this now before updating server info, otherwise it won't be set in time
-            apiClient.enableAutomaticBitrateDetection = options.enableAutomaticBitrateDetection;
-
-            apiClient.serverInfo(server);
-            afterConnected(apiClient, options);
-
-            return onLocalUserSignIn(server, apiClient.serverAddress(), result.User);
-        }
-
-        function afterConnected(apiClient, options = {}) {
-            if (options.reportCapabilities !== false) {
-                apiClient.reportCapabilities(capabilities);
-            }
-            apiClient.enableAutomaticBitrateDetection = options.enableAutomaticBitrateDetection;
-
-            if (options.enableWebSocket !== false) {
-                console.log("calling apiClient.ensureWebSocket");
-
-                apiClient.ensureWebSocket();
-            }
-        }
-
-        function onLocalUserSignIn(server, serverUrl, user) {
-
-            // Ensure this is created so that listeners of the event can get the apiClient instance
-            self._getOrAddApiClient(server, serverUrl);
-
-            // This allows the app to have a single hook that fires before any other
-            const promise = self.onLocalUserSignedIn ? self.onLocalUserSignedIn.call(self, user) : Promise.resolve();
-
-            return promise.then(() => {
-                events.trigger(self, "localusersignedin", [user]);
-            });
-        }
-
-        function validateAuthentication(server, serverUrl) {
-
-            return ajax({
-
-                type: "GET",
-                url: getEmbyServerUrl(serverUrl, "System/Info"),
-                dataType: "json",
-                headers: {
-                    "X-MediaBrowser-Token": server.AccessToken
-                }
-
-            }).then(systemInfo => {
-
-                updateServerInfo(server, systemInfo);
-                return Promise.resolve();
-
-            }, () => {
-
-                server.UserId = null;
-                server.AccessToken = null;
-                return Promise.resolve();
-            });
-        }
-
-        function getImageUrl(localUser) {
-
-            if (localUser && localUser.PrimaryImageTag) {
-
-                const apiClient = self.getApiClient(localUser);
-
-                const url = apiClient.getUserImageUrl(localUser.Id, {
-                    tag: localUser.PrimaryImageTag,
-                    type: "Primary"
-                });
-
-                return {
-                    url,
-                    supportsParams: true
-                };
-            }
-
-            return {
-                url: null,
-                supportsParams: false
-            };
-        }
-
-        self.user = apiClient => new Promise((resolve, reject) => {
-
-            let localUser;
-
-            function onLocalUserDone(e) {
-
-                if (apiClient && apiClient.getCurrentUserId()) {
-                    apiClient.getCurrentUser().then(u => {
-                        localUser = u;
-                        const image = getImageUrl(localUser);
-
-                        resolve({
-                            localUser,
-                            name: (localUser ? localUser.Name : null),
-                            imageUrl: image.url,
-                            supportsImageParams: image.supportsParams,
-                        });
-                    });
-                }
-            }
-
-            if (!(apiClient && apiClient.getCurrentUserId())) {
-                onLocalUserDone();
-            }
-        });
-
-        self.logout = () => {
-
-            console.log("begin connectionManager loguot");
-            const promises = [];
-
-            for (let i = 0, length = self._apiClients.length; i < length; i++) {
-
-                const apiClient = self._apiClients[i];
-
-                if (apiClient.accessToken()) {
-                    promises.push(logoutOfServer(apiClient));
-                }
-            }
-
-            return Promise.all(promises).then(() => {
-
-                const credentials = credentialProvider.credentials();
-
-                const servers = credentials.Servers.filter(u => u.UserLinkType !== "Guest");
-
-                for (let j = 0, numServers = servers.length; j < numServers; j++) {
-
-                    const server = servers[j];
-
-                    server.UserId = null;
-                    server.AccessToken = null;
-                    server.ExchangeToken = null;
-                }
-            });
-        };
-
-        function logoutOfServer(apiClient) {
-
-            const serverInfo = apiClient.serverInfo() || {};
-
-            const logoutInfo = {
-                serverId: serverInfo.Id
-            };
-
-            return apiClient.logout().then(() => {
-
-                events.trigger(self, "localusersignedout", [logoutInfo]);
-            }, () => {
-
-                events.trigger(self, "localusersignedout", [logoutInfo]);
-            });
-        }
-
-        self.getSavedServers = () => {
-
-            const credentials = credentialProvider.credentials();
-
-            const servers = credentials.Servers.slice(0);
-
-            servers.sort((a, b) => (b.DateLastAccessed || 0) - (a.DateLastAccessed || 0));
-
-            return servers;
-        };
-
-        self.getAvailableServers = () => {
-
-            console.log("Begin getAvailableServers");
-
-            // Clone the array
-            const credentials = credentialProvider.credentials();
-
-            return Promise.all([findServers()]).then(responses => {
-
-                const foundServers = responses[0];
-                const servers = credentials.Servers.slice(0);
-                mergeServers(credentialProvider, servers, foundServers);
-
-                servers.sort((a, b) => (b.DateLastAccessed || 0) - (a.DateLastAccessed || 0));
-                credentials.Servers = servers;
-                credentialProvider.credentials(credentials);
-
-                return servers;
-            });
-        };
-
-        function findServers() {
-
-            return new Promise((resolve, reject) => {
-
-                const onFinish = foundServers => {
-                    const servers = foundServers.map(foundServer => {
-
-                        const info = {
-                            Id: foundServer.Id,
-                            LocalAddress: convertEndpointAddressToManualAddress(foundServer) || foundServer.Address,
-                            Name: foundServer.Name
-                        };
-
-                        info.LastConnectionMode = info.ManualAddress ? ConnectionMode.Manual : ConnectionMode.Local;
-
-                        return info;
-                    });
-                    resolve(servers);
-                };
-
-                serverDiscoveryFn.findServers(1000).then(onFinish, () => {
-                    onFinish([]);
-                });
-            });
-        }
-
-        function convertEndpointAddressToManualAddress(info) {
-
-            if (info.Address && info.EndpointAddress) {
-                let address = info.EndpointAddress.split(":")[0];
-
-                // Determine the port, if any
-                const parts = info.Address.split(":");
-                if (parts.length > 1) {
-                    const portString = parts[parts.length - 1];
-
-                    if (!isNaN(parseInt(portString))) {
-                        address += `:${portString}`;
-                    }
-                }
-
-                return normalizeAddress(address);
-            }
-
+        this._appName = appName;
+        this._appVersion = appVersion;
+        this._capabilities = capabilities;
+        this._credentialProvider = credentialProvider;
+    }
+
+    public appName = () => this._appName;
+    public appVersion = () => this._appVersion;
+    public capabilities = () => this._capabilities;
+    public credentialProvider = () => this._credentialProvider;
+
+    public getServerInfo(id: string) {
+        const servers = this._credentialProvider.credentials().Servers;
+
+        return servers.filter(s => s.Id === id)[0];
+    }
+
+    public getLastUsedServer() {
+        const servers = this._credentialProvider.credentials().Servers;
+
+        servers.sort(
+            (a, b) => (b.DateLastAccessed || 0) - (a.DateLastAccessed || 0)
+        );
+
+        if (!servers.length) {
             return null;
         }
 
-        self.connectToServers = (servers, options) => {
+        return servers[0];
+    }
 
-            console.log(`Begin connectToServers, with ${servers.length} servers`);
+    public addApiClient(apiClient: ApiClient) {
+        this._apiClients.push(apiClient);
 
-            const firstServer = servers.length ? servers[0] : null;
-            // See if we have any saved credentials and can auto sign in
-            if (firstServer) {
-                return self.connectToServer(firstServer, options).then((result) => {
+        const existingServers = this._credentialProvider
+            .credentials()
+            .Servers.filter(
+                s =>
+                    stringEqualsIgnoreCase(
+                        s.ManualAddress,
+                        apiClient.serverAddress()
+                    ) ||
+                    stringEqualsIgnoreCase(
+                        s.LocalAddress,
+                        apiClient.serverAddress()
+                    ) ||
+                    stringEqualsIgnoreCase(
+                        s.RemoteAddress,
+                        apiClient.serverAddress()
+                    )
+            );
 
-                    if (result.State === "Unavailable") {
+        const existingServer = existingServers.length
+            ? existingServers[0]
+            : apiClient.serverInfo!;
+        existingServer.DateLastAccessed = new Date().getTime();
+        existingServer.LastConnectionMode = ConnectionMode.Manual;
+        existingServer.ManualAddress = apiClient.serverAddress();
 
-                        result.State = "ServerSelection";
-                    }
-
-                    console.log("resolving connectToServers with result.State: " + result.State);
-                    return result;
-                });
-            }
-
-            return Promise.resolve({
-                Servers: servers,
-                State: "ServerSelection"
-            });
-        };
-
-        function getTryConnectPromise(url, connectionMode, state, resolve, reject) {
-
-            console.log("getTryConnectPromise " + url);
-
-            ajax({
-
-                url: getEmbyServerUrl(url, "system/info/public"),
-                timeout: defaultTimeout,
-                type: "GET",
-                dataType: "json"
-
-            }).then((result) => {
-
-                if (!state.resolved) {
-                    state.resolved = true;
-
-                    console.log("Reconnect succeeded to " + url);
-                    resolve({
-                        url,
-                        connectionMode,
-                        data: result
-                    });
-                }
-
-            }, () => {
-
-                console.log("Reconnect failed to " + url);
-
-                if (!state.resolved) {
-                    state.rejects++;
-                    if (state.rejects >= state.numAddresses) {
-                        reject();
-                    }
-                }
-            });
+        if (apiClient.manualAddressOnly) {
+            existingServer.manualAddressOnly = true;
         }
 
-        function tryReconnect(serverInfo) {
+        apiClient.serverInfo = existingServer;
 
-            const addresses = [];
-            const addressesStrings = [];
+        apiClient.onAuthenticated = (instance, result) =>
+            this.onAuthenticated(instance, result, {}, true);
 
-            // the timeouts are a small hack to try and ensure the remote address doesn't resolve first
-
-            // manualAddressOnly is used for the local web app that always connects to a fixed address
-            if (!serverInfo.manualAddressOnly && serverInfo.LocalAddress && addressesStrings.indexOf(serverInfo.LocalAddress) === -1) {
-                addresses.push({
-                    url: serverInfo.LocalAddress,
-                    mode: ConnectionMode.Local,
-                    timeout: 0
-                });
-                addressesStrings.push(addresses[addresses.length - 1].url);
-            }
-            if (serverInfo.ManualAddress && addressesStrings.indexOf(serverInfo.ManualAddress) === -1) {
-                addresses.push({
-                    url: serverInfo.ManualAddress,
-                    mode: ConnectionMode.Manual,
-                    timeout: 100
-                });
-                addressesStrings.push(addresses[addresses.length - 1].url);
-            }
-            if (!serverInfo.manualAddressOnly && serverInfo.RemoteAddress && addressesStrings.indexOf(serverInfo.RemoteAddress) === -1) {
-                addresses.push({
-                    url: serverInfo.RemoteAddress,
-                    mode: ConnectionMode.Remote,
-                    timeout: 200
-                });
-                addressesStrings.push(addresses[addresses.length - 1].url);
-            }
-
-            console.log("tryReconnect: " + addressesStrings.join("|"));
-
-            return new Promise((resolve, reject) => {
-
-                const state = {};
-                state.numAddresses = addresses.length;
-                state.rejects = 0;
-
-                addresses.map((url) => {
-
-                    setTimeout(() => {
-                        if (!state.resolved) {
-                            getTryConnectPromise(url.url, url.mode, state, resolve, reject);
-                        }
-
-                    }, url.timeout);
-                });
-            });
+        if (!existingServers.length) {
+            const credentials = this._credentialProvider.credentials();
+            credentials.Servers = [existingServer];
+            this._credentialProvider.credentials(credentials);
         }
 
-        self.connectToServer = (server, options) => {
+        events.trigger(this, "apiclientcreated", [apiClient]);
+    }
 
-            console.log("begin connectToServer");
+    public clearData() {
+        console.log("connection manager clearing data");
 
-            return new Promise((resolve, reject) => {
+        const credentials = this._credentialProvider.credentials();
+        credentials.Servers = [];
+        this._credentialProvider.credentials(credentials);
+    }
 
-                options = options || {};
+    public getOrCreateApiClient(serverId: string) {
+        const credentials = this._credentialProvider.credentials();
+        const servers = credentials.Servers.filter(s =>
+            stringEqualsIgnoreCase(s.Id, serverId)
+        );
 
-                tryReconnect(server).then((result) => {
+        if (!servers.length) {
+            throw new Error(`Server not found: ${serverId}`);
+        }
 
-                    const serverUrl = result.url;
-                    const connectionMode = result.connectionMode;
-                    result = result.data;
+        const server = servers[0];
+        const serverAddress = getServerAddress(
+            server,
+            server.LastConnectionMode
+        );
 
-                    if (compareVersions(self.minServerVersion(), result.Version) === 1) {
+        if (!serverAddress) {
+            throw new Error(`Could not get server address: ${server.Id}`);
+        }
 
-                        console.log("minServerVersion requirement not met. Server version: " + result.Version);
-                        resolve({
-                            State: "ServerUpdateNeeded",
-                            Servers: [server]
-                        });
+        return this._getOrAddApiClient(server, serverAddress);
+    }
 
-                    } else if (server.Id && result.Id !== server.Id) {
+    public async user(apiClient: ApiClient): Promise<LocalUser | null> {
+        if (apiClient && apiClient.getCurrentUserId()) {
+            const user = await apiClient.getCurrentUser();
+            const image = this.getImageUrl(user);
 
-                        console.log("http request succeeded, but found a different server Id than what was expected");
-                        resolveFailure(self, resolve);
+            return {
+                localUser: user,
+                name: user ? user.Name : null,
+                imageUrl: image.url,
+                supportsImageParams: image.supportsParams
+            };
+        }
 
-                    } else {
-                        onSuccessfulConnection(server, result, connectionMode, serverUrl, options, resolve);
-                    }
+        return null;
+    }
 
-                }, () => {
+    public async logout() {
+        console.log("begin connectionManager loguot");
 
-                    resolveFailure(self, resolve);
-                });
-            });
-        };
+        const promises = this._apiClients
+            .filter(client => !!client.accessToken())
+            .map(client => this.logoutOfServer(client));
 
-        function onSuccessfulConnection(server, systemInfo, connectionMode, serverUrl, verifyLocalAuthentication, options, resolve) {
+        await Promise.all(promises);
 
-            const credentials = credentialProvider.credentials();
-            options = options || {};
-            if (options.enableAutoLogin === false) {
-
+        const credentials = this._credentialProvider.credentials();
+        credentials.Servers.filter(u => u.UserLinkType !== "Guest").forEach(
+            server => {
                 server.UserId = null;
                 server.AccessToken = null;
-
-            } else if (verifyLocalAuthentication && server.AccessToken && options.enableAutoLogin !== false) {
-
-                validateAuthentication(server, serverUrl).then(() => {
-
-                    onSuccessfulConnection(server, credentials, systemInfo, connectionMode, serverUrl, false, options, resolve);
-                });
-
-                return;
+                server.ExchangeToken = null;
             }
+        );
+    }
 
-            updateServerInfo(server, systemInfo);
+    public getSavedServers(): ServerInfo[] {
+        const credentials = this._credentialProvider.credentials();
 
-            server.LastConnectionMode = connectionMode;
+        return credentials.Servers.slice(0).sort(
+            (a, b) => (b.DateLastAccessed || 0) - (a.DateLastAccessed || 0)
+        );
+    }
 
-            if (options.updateDateLastAccessed !== false) {
-                server.DateLastAccessed = new Date().getTime();
+    public async getAvailableServers(): Promise<ServerInfo[]> {
+        console.log("Begin getAvailableServers");
+
+        // Clone the array
+        const credentials = this._credentialProvider.credentials();
+
+        const foundServers = await this.findServers();
+        const servers = credentials.Servers.slice(0);
+
+        mergeServers(this._credentialProvider, servers, foundServers);
+        servers.sort(
+            (a, b) => (b.DateLastAccessed || 0) - (a.DateLastAccessed || 0)
+        );
+        credentials.Servers = servers;
+        this._credentialProvider.credentials(credentials);
+
+        return servers;
+    }
+
+    public async connectToServers(
+        servers: ServerInfo[],
+        options: ConnectOptions
+    ): Promise<ConnectResult> {
+        console.log(`Begin connectToServers, with ${servers.length} servers`);
+
+        const firstServer = servers.length ? servers[0] : null;
+        // See if we have any saved credentials and can auto sign in
+        if (firstServer) {
+            const result = await this.connectToServer(firstServer, options);
+            if (result.State === ConnectState.Unavailable) {
+                result.State = ConnectState.ServerSelection;
             }
-            credentialProvider.addOrUpdateServer(credentials.Servers, server);
-            credentialProvider.credentials(credentials);
-
-            const result = {
-                Servers: []
-            };
-
-            result.ApiClient = self._getOrAddApiClient(server, serverUrl);
-
-            result.ApiClient.setSystemInfo(systemInfo);
-
-            result.State = server.AccessToken && options.enableAutoLogin !== false ?
-                "SignedIn" :
-                "ServerSignIn";
-
-            result.Servers.push(server);
-
-            // set this now before updating server info, otherwise it won't be set in time
-            result.ApiClient.enableAutomaticBitrateDetection = options.enableAutomaticBitrateDetection;
-
-            result.ApiClient.updateServerInfo(server, serverUrl);
-
-            const resolveActions = function () {
-                resolve(result);
-
-                events.trigger(self, "connected", [result]);
-            };
-
-            if (result.State === "SignedIn") {
-                afterConnected(result.ApiClient, options);
-
-                result.ApiClient.getCurrentUser().then((user) => {
-                    onLocalUserSignIn(server, serverUrl, user).then(resolveActions, resolveActions);
-                }, resolveActions);
-            } else {
-                resolveActions();
-            }
+            console.log(
+                `resolving connectToServers with result.State: ${result.State}`
+            );
+            return result;
         }
 
-        self.connectToAddress = function (address, options) {
-
-            if (!address) {
-                return Promise.reject();
-            }
-
-            address = normalizeAddress(address);
-            const instance = this;
-
-            function onFail() {
-                console.log(`connectToAddress ${address} failed`);
-                return Promise.resolve({
-                    State: "Unavailable"
-                });
-            }
-
-            const server = {
-                ManualAddress: address,
-                LastConnectionMode: ConnectionMode.Manual
-            };
-
-            return self.connectToServer(server, options).catch(onFail);
-        };
-
-        self.deleteServer = serverId => {
-
-            if (!serverId) {
-                throw new Error("null serverId");
-            }
-
-            let server = credentialProvider.credentials().Servers.filter(s => s.Id === serverId);
-            server = server.length ? server[0] : null;
-
-            return new Promise((resolve, reject) => {
-
-                function onDone() {
-                    const credentials = credentialProvider.credentials();
-
-                    credentials.Servers = credentials.Servers.filter(s => s.Id !== serverId);
-
-                    credentialProvider.credentials(credentials);
-                    resolve();
-                }
-
-                if (!server.ConnectServerId) {
-                    onDone();
-                    return;
-                }
-            });
+        return {
+            Servers: servers,
+            State: ConnectState.ServerSelection
         };
     }
 
-    public connect(options) {
+    public async connectToServer(
+        server: ServerInfo,
+        options?: ConnectOptions
+    ): Promise<ConnectResult> {
+        console.log("begin connectToServer");
 
+        try {
+            const result = await this.tryReconnect(server);
+            const serverUrl = result.url;
+            const connectionMode = result.connectionMode;
+            const systemInfo = result.data;
+
+            if (
+                compareVersions(
+                    this.minServerVersion(),
+                    systemInfo.Version!
+                ) === 1
+            ) {
+                console.log(
+                    `minServerVersion requirement not met. Server version: ${systemInfo.Version}`
+                );
+                return {
+                    State: ConnectState.ServerUpdateNeeded,
+                    Servers: [server]
+                };
+            } else if (server.Id && systemInfo.Id !== server.Id) {
+                console.log(
+                    "http request succeeded, but found a different server Id than what was expected"
+                );
+                return {
+                    State: ConnectState.Unavailable
+                };
+            }
+
+            return new Promise(resolve =>
+                this.onSuccessfulConnection(
+                    server,
+                    systemInfo,
+                    connectionMode,
+                    serverUrl,
+                    true,
+                    options,
+                    resolve
+                )
+            );
+        } catch (err) {
+            return {
+                State: ConnectState.Unavailable
+            };
+        }
+    }
+
+    public async connectToAddress(
+        address: string,
+        options?: ConnectOptions
+    ): Promise<ConnectResult> {
+        assertNotNullish("address", address);
+
+        address = normalizeAddress(address);
+
+        const server: ServerInfo = {
+            ManualAddress: address,
+            LastConnectionMode: ConnectionMode.Manual
+        };
+
+        try {
+            return this.connectToServer(server, options);
+        } catch (result) {
+            console.log(`connectToAddress ${address} failed`);
+            return {
+                State: ConnectState.Unavailable
+            };
+        }
+    }
+
+    public async deleteServer(serverId: string): Promise<void> {
+        assertNotNullish("serverId", serverId);
+
+        const servers = this._credentialProvider
+            .credentials()
+            .Servers.filter(s => s.Id === serverId);
+        const server = servers.length ? servers[0] : null;
+
+        try {
+            assertNotNullish("server", server);
+
+            if (!server.ConnectServerId) {
+                const credentials = this._credentialProvider.credentials();
+
+                credentials.Servers = credentials.Servers.filter(
+                    s => s.Id !== serverId
+                );
+
+                this._credentialProvider.credentials(credentials);
+            }
+        } catch (err) {
+            console.warn(`Error deleting server ${serverId}: ${err}`);
+        }
+    }
+
+    public async connect(options: ConnectOptions): Promise<ConnectResult> {
         console.log("Begin connect");
 
-        const instance = this;
-
-        return instance.getAvailableServers().then(servers => instance.connectToServers(servers, options));
+        const servers = await this.getAvailableServers();
+        return this.connectToServers(servers, options);
     }
 
-    public handleMessageReceived(msg) {
-
+    public handleMessageReceived(msg: WebSocketMessage<any>) {
         const serverId = msg.ServerId;
         if (serverId) {
             const apiClient = this.getApiClient(serverId);
             if (apiClient) {
-
-                if (typeof (msg.Data) === "string") {
+                if (typeof msg.Data === "string") {
                     try {
                         msg.Data = JSON.parse(msg.Data);
                     } catch (err) {
-                        console.log("unable to parse json content: " + err);
+                        console.log(`unable to parse json content: ${err}`);
                     }
                 }
 
@@ -904,47 +661,439 @@ export default class ConnectionManager {
         }
     }
 
-    public getApiClients() {
-
+    public getApiClients(): ApiClient[] {
         const servers = this.getSavedServers();
 
         for (let i = 0, length = servers.length; i < length; i++) {
             const server = servers[i];
             if (server.Id) {
-                this._getOrAddApiClient(server, getServerAddress(server, server.LastConnectionMode));
+                this._getOrAddApiClient(
+                    server,
+                    getServerAddress(server, server.LastConnectionMode)!
+                );
             }
         }
 
         return this._apiClients;
     }
 
-    public getApiClient(item) {
+    public getApiClient(itemOrServerId: BaseItemDto | string): ApiClient {
+        const serverId =
+            typeof itemOrServerId === "string"
+                ? itemOrServerId
+                : itemOrServerId.ServerId;
 
-        if (!item) {
-            throw new Error("item or serverId cannot be null");
-        }
-
-        // Accept string + object
-        if (item.ServerId) {
-            item = item.ServerId;
+        if (!serverId) {
+            throw new Error("itemOrServerId cannot be null");
         }
 
         return this._apiClients.filter(a => {
-
-            const serverInfo = a.serverInfo();
+            const serverInfo = a.serverInfo;
 
             // We have to keep this hack in here because of the addApiClient method
-            return !serverInfo || serverInfo.Id === item;
-
+            return !serverInfo || serverInfo.Id === serverId;
         })[0];
     }
 
-    public minServerVersion(val) {
-
+    public minServerVersion(val?: string): string {
         if (val) {
             this._minServerVersion = val;
         }
 
         return this._minServerVersion;
+    }
+
+    private _getOrAddApiClient(
+        server: ServerInfo,
+        serverUrl: string
+    ): ApiClient {
+        assertNotNullish("server.Id", server.Id);
+
+        let apiClient = this.getApiClient(server.Id);
+
+        if (!apiClient) {
+            apiClient = new this.apiClientFactory(
+                this.appStorage,
+                serverUrl,
+                this._appName,
+                this._appVersion,
+                this.deviceName,
+                this.deviceId,
+                this.devicePixelRatio
+            );
+            apiClient.serverInfo = server;
+            apiClient.onAuthenticated = (instance, result) =>
+                this.onAuthenticated(instance, result, {}, true);
+
+            this._apiClients.push(apiClient);
+
+            events.trigger(this, "apiclientcreated", [apiClient]);
+        }
+
+        console.log("returning instance from getOrAddApiClient");
+        return apiClient;
+    }
+
+    private onAuthenticated(
+        apiClient: ApiClient,
+        result: AuthenticationResult,
+        options: ConnectOptions,
+        saveCredentials: boolean
+    ) {
+        const credentials = this._credentialProvider.credentials();
+        const servers = credentials.Servers.filter(
+            s => s.Id === result.ServerId
+        );
+        const server = servers.length ? servers[0] : apiClient.serverInfo;
+
+        assertNotNullish("server", server);
+        assertNotNullish("result.User", result.User);
+
+        if (options.updateDateLastAccessed !== false) {
+            server.DateLastAccessed = new Date().getTime();
+        }
+
+        server.Id = result.ServerId;
+
+        if (saveCredentials) {
+            server.UserId = result.User.Id;
+            server.AccessToken = result.AccessToken;
+        } else {
+            server.UserId = null;
+            server.AccessToken = null;
+        }
+
+        this._credentialProvider.addOrUpdateServer(credentials.Servers, server);
+        this._credentialProvider.credentials(credentials);
+
+        // set this now before updating server info, otherwise it won't be set in time
+        apiClient.enableAutomaticBitrateDetection =
+            options.enableAutomaticBitrateDetection;
+
+        apiClient.serverInfo = server;
+        this.afterConnected(apiClient, options);
+
+        return this.onLocalUserSignIn(
+            server,
+            apiClient.serverAddress(),
+            result.User
+        );
+    }
+
+    private afterConnected(apiClient: ApiClient, options: ConnectOptions = {}) {
+        if (options.reportCapabilities !== false) {
+            apiClient.reportCapabilities(this.capabilities());
+        }
+        apiClient.enableAutomaticBitrateDetection = !!options.enableAutomaticBitrateDetection;
+
+        if (options.enableWebSocket !== false) {
+            console.log("calling apiClient.ensureWebSocket");
+
+            apiClient.ensureWebSocket();
+        }
+    }
+
+    private async onLocalUserSignIn(
+        server: ServerInfo,
+        serverUrl: string,
+        user: UserDto
+    ) {
+        // Ensure this is created so that listeners of the event can get the apiClient instance
+        this._getOrAddApiClient(server, serverUrl);
+
+        // This allows the app to have a single hook that fires before any other
+        if (this.onLocalUserSignedIn) {
+            await this.onLocalUserSignedIn(user);
+        }
+
+        events.trigger(this, "localusersignedin", [user]);
+    }
+
+    private async validateAuthentication(
+        server: ServerInfo,
+        serverUrl: string
+    ): Promise<void> {
+        try {
+            assertNotNullish("server.AccessToken", server.AccessToken);
+
+            const systemInfo = await ajax<SystemInfo>({
+                type: "GET",
+                url: getEmbyServerUrl(serverUrl, "System/Info"),
+                dataType: "json",
+                headers: {
+                    "X-MediaBrowser-Token": server.AccessToken
+                }
+            });
+
+            updateServerInfo(server, systemInfo);
+        } catch (e) {
+            server.UserId = null;
+            server.AccessToken = null;
+        }
+    }
+
+    private getImageUrl(user: UserDto): ImageUrl {
+        if (user && user.PrimaryImageTag) {
+            const apiClient = this.getApiClient(user);
+
+            const url = apiClient.getUserImageUrl(user.Id, {
+                Tag: user.PrimaryImageTag,
+                Type: ImageType.Primary
+            });
+
+            return {
+                url,
+                supportsParams: true
+            };
+        }
+
+        return {
+            url: null,
+            supportsParams: false
+        };
+    }
+
+    private async logoutOfServer(apiClient: ApiClient): Promise<void> {
+        const serverInfo = apiClient.serverInfo || {};
+
+        const logoutInfo = {
+            serverId: serverInfo.Id
+        };
+
+        try {
+            await apiClient.logout();
+            events.trigger(this, "localusersignedout", [logoutInfo]);
+        } catch (e) {
+            events.trigger(this, "localusersignedout", [logoutInfo]);
+        }
+    }
+
+    private async findServers(): Promise<ServerInfo[]> {
+        if (!(this.serverDiscoveryFn && this.serverDiscoveryFn.findServers)) {
+            return [];
+        }
+
+        try {
+            const foundServers = await this.serverDiscoveryFn.findServers(1000);
+            return foundServers.map(foundServer => ({
+                Id: foundServer.Id,
+                LocalAddress:
+                    this.convertEndpointAddressToManualAddress(foundServer) ||
+                    foundServer.Address,
+                Name: foundServer.Name,
+                LastConnectionMode: ConnectionMode.Local
+            }));
+        } catch (error) {
+            return [];
+        }
+    }
+
+    private convertEndpointAddressToManualAddress(
+        info: ServerDiscoveryInfo
+    ): string | null {
+        if (info.Address && info.EndpointAddress) {
+            let address = info.EndpointAddress.split(":")[0];
+
+            // Determine the port, if any
+            const parts = info.Address.split(":");
+            if (parts.length > 1) {
+                const portString = parts[parts.length - 1];
+
+                if (!isNaN(parseInt(portString, 10))) {
+                    address += `:${portString}`;
+                }
+            }
+
+            return normalizeAddress(address);
+        }
+
+        return null;
+    }
+
+    private getTryConnectPromise(
+        url: string,
+        connectionMode: ConnectionMode,
+        state: ReconnectState,
+        resolve: (result: ReconnectResult) => void,
+        reject: () => void
+    ) {
+        console.log(`getTryConnectPromise ${url}`);
+
+        ajax<PublicSystemInfo>({
+            url: getEmbyServerUrl(url, "system/info/public"),
+            timeout: defaultTimeout,
+            type: "GET",
+            dataType: "json"
+        }).then(
+            result => {
+                if (!state.resolved) {
+                    state.resolved = true;
+
+                    console.log(`Reconnect succeeded to ${url}`);
+                    resolve({
+                        url,
+                        connectionMode,
+                        data: result as PublicSystemInfo
+                    });
+                }
+            },
+            () => {
+                console.log(`Reconnect failed to ${url}`);
+
+                if (!state.resolved) {
+                    state.rejects++;
+                    if (state.rejects >= state.numAddresses) {
+                        reject();
+                    }
+                }
+            }
+        );
+    }
+
+    private tryReconnect(serverInfo: ServerInfo): Promise<ReconnectResult> {
+        const addresses: ServerAddress[] = [];
+        const addressesStrings: string[] = [];
+
+        // the timeouts are a small hack to try and ensure the remote address doesn't resolve first
+
+        // manualAddressOnly is used for the local web app that always connects to a fixed address
+        if (
+            !serverInfo.manualAddressOnly &&
+            serverInfo.LocalAddress &&
+            addressesStrings.indexOf(serverInfo.LocalAddress) === -1
+        ) {
+            addresses.push({
+                url: serverInfo.LocalAddress,
+                mode: ConnectionMode.Local,
+                timeout: 0
+            });
+            addressesStrings.push(addresses[addresses.length - 1].url);
+        }
+        if (
+            serverInfo.ManualAddress &&
+            addressesStrings.indexOf(serverInfo.ManualAddress) === -1
+        ) {
+            addresses.push({
+                url: serverInfo.ManualAddress,
+                mode: ConnectionMode.Manual,
+                timeout: 100
+            });
+            addressesStrings.push(addresses[addresses.length - 1].url);
+        }
+        if (
+            !serverInfo.manualAddressOnly &&
+            serverInfo.RemoteAddress &&
+            addressesStrings.indexOf(serverInfo.RemoteAddress) === -1
+        ) {
+            addresses.push({
+                url: serverInfo.RemoteAddress,
+                mode: ConnectionMode.Remote,
+                timeout: 200
+            });
+            addressesStrings.push(addresses[addresses.length - 1].url);
+        }
+
+        console.log(`tryReconnect: ${addressesStrings.join("|")}`);
+
+        return new Promise((resolve, reject) => {
+            const state: ReconnectState = {
+                numAddresses: addresses.length,
+                rejects: 0,
+                resolved: false
+            };
+
+            addresses.map(url => {
+                setTimeout(() => {
+                    if (!state.resolved) {
+                        this.getTryConnectPromise(
+                            url.url,
+                            url.mode,
+                            state,
+                            resolve,
+                            reject
+                        );
+                    }
+                }, url.timeout);
+            });
+        });
+    }
+
+    private onSuccessfulConnection(
+        server: ServerInfo,
+        systemInfo: PublicSystemInfo,
+        connectionMode: ConnectionMode,
+        serverUrl: string,
+        verifyLocalAuthentication: boolean,
+        options: ConnectOptions = {},
+        resolve: (result: ConnectResult) => any
+    ) {
+        const credentials = this._credentialProvider.credentials();
+        if (options.enableAutoLogin === false) {
+            server.UserId = null;
+            server.AccessToken = null;
+        } else if (verifyLocalAuthentication && server.AccessToken) {
+            this.validateAuthentication(server, serverUrl).then(() => {
+                this.onSuccessfulConnection(
+                    server,
+                    systemInfo,
+                    connectionMode,
+                    serverUrl,
+                    false,
+                    options,
+                    resolve
+                );
+            });
+
+            return;
+        }
+
+        updateServerInfo(server, systemInfo);
+
+        server.LastConnectionMode = connectionMode;
+
+        if (options.updateDateLastAccessed !== false) {
+            server.DateLastAccessed = new Date().getTime();
+        }
+        this._credentialProvider.addOrUpdateServer(credentials.Servers, server);
+        this._credentialProvider.credentials(credentials);
+
+        const result: ConnectResult = {
+            Servers: [server],
+            ApiClient: this._getOrAddApiClient(server, serverUrl),
+            State:
+                server.AccessToken && options.enableAutoLogin !== false
+                    ? ConnectState.SignedIn
+                    : ConnectState.ServerSignIn
+        };
+
+        // there's no way this is nullish but typescript insisted..
+        assertNotNullish("result.ApiClient", result.ApiClient);
+
+        result.ApiClient.setSystemInfo(systemInfo);
+
+        // set this now before updating server info, otherwise it won't be set in time
+        result.ApiClient.enableAutomaticBitrateDetection =
+            options.enableAutomaticBitrateDetection;
+
+        result.ApiClient.updateServerInfo(server, serverUrl);
+
+        const resolveActions = () => {
+            resolve(result);
+
+            events.trigger(this, "connected", [result]);
+        };
+
+        if (result.State === ConnectState.SignedIn) {
+            this.afterConnected(result.ApiClient, options);
+
+            result.ApiClient.getCurrentUser().then(user => {
+                this.onLocalUserSignIn(server, serverUrl, user).then(
+                    resolveActions,
+                    resolveActions
+                );
+            }, resolveActions);
+        } else {
+            resolveActions();
+        }
     }
 }

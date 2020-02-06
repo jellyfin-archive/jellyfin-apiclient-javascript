@@ -1,22 +1,17 @@
 ﻿function getValidFileName(path: string) {
-
     // TODO
     return path;
 }
 
 
 function getFullLocalPath(pathArray: string[]) {
-
     // TODO
     return pathArray.join("/");
-
 }
 
 function getPathFromArray(pathArray: string[]) {
-
     // TODO
     return pathArray.join("/");
-
 }
 
 function deleteFile(path: string) {
@@ -28,7 +23,7 @@ function deleteDirectory(path: string) {
 }
 
 function fileExists(path: string) {
-    return Promise.resolve();
+    return Promise.resolve(false);
 }
 
 function getItemFileSize(path: string) {
@@ -47,5 +42,8 @@ export default {
     deleteDirectory,
     fileExists,
     getItemFileSize,
-    getImageUrl
+    getImageUrl,
+    getParentPath: (path: string) => "",
+    combinePath: (folder: string, name: string) => "",
+    getFullMetadataPath: (path: string[]) => ""
 };

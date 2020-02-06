@@ -1,6 +1,7 @@
 function onCachePutFail(e: Error) {
     console.log(e);
 }
+
 export interface AppStorage {
     setItem(name: string, value: string | null): void
     getItem(name: string): string | null

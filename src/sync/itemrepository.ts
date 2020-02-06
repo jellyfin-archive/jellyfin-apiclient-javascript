@@ -1,18 +1,13 @@
-// In the following line, you should include the prefixes of implementations you want to test.
-import { SyncedItem } from "../types";
+import { LocalItem } from "../types/LocalItem";
 
-// Database version
 const dbVersion = 1;
-
 const databases: Record<string, IDBDatabase> = {};
 
 function createDB(dbName: string): Promise<IDBDatabase> {
     const request = indexedDB.open(dbName, dbVersion);
 
     return new Promise<IDBDatabase>((resolve, reject) => {
-        request.onerror = event => {
-            reject(event);
-        };
+        request.onerror = event => reject(event);
 
         request.onupgradeneeded = event => {
             const db = (event.target as IDBRequest<IDBDatabase>).result;
@@ -24,14 +19,10 @@ function createDB(dbName: string): Promise<IDBDatabase> {
 
             // Use transaction oncomplete to make sure the objectStore creation is
             // finished before adding data into it.
-            objectStore.transaction.oncomplete = () => {
-                resolve(db);
-            };
+            objectStore.transaction.oncomplete = () => resolve(db);
         };
 
-        request.onsuccess = function() {
-            resolve(this.result);
-        };
+        request.onsuccess = () => resolve(request.result);
     });
 }
 
@@ -40,7 +31,6 @@ function getDbName(serverId: string) {
 }
 
 async function getDb(serverId: string) {
-
     const dbName = getDbName(serverId);
     const db = databases[dbName];
     if (db) {
@@ -56,13 +46,13 @@ function filterDistinct<T>(value: T, index: number, self: T[]) {
     return self.indexOf(value) === index;
 }
 
-async function getServerItemTypes(serverId: string, userId: string): Promise<string[]> {
-    const all = await getAll(serverId, userId);
-    return all.map(item2 => item2.Item.Type || "").filter(filterDistinct);
+async function getServerItemTypes(serverId: string): Promise<string[]> {
+    const all = await getAll(serverId);
+    return all.map(item => item.Item.Type || "").filter(filterDistinct);
 }
 
-function getAll(serverId: string): Promise<SyncedItem[]> {
-    return new Promise<SyncedItem[]>(async (resolve, reject) => {
+function getAll(serverId: string): Promise<LocalItem[]> {
+    return new Promise<LocalItem[]>(async (resolve, reject) => {
         const db = await getDb(serverId);
 
         const storeName = getDbName(serverId);
@@ -74,14 +64,11 @@ function getAll(serverId: string): Promise<SyncedItem[]> {
             // IDBObjectStore.getAll() will return the full set of items in our store.
             const request = objectStore.getAll(null, 10000);
 
-            request.onsuccess = function() {
-                resolve(this.result);
-            };
-
+            request.onsuccess = () => resolve(request.result);
             request.onerror = reject;
         } else {
             // Fallback to the traditional cursor approach if getAll isn't supported.
-            const results: SyncedItem[] = [];
+            const results: LocalItem[] = [];
             const request = (objectStore as IDBObjectStore).openCursor();
 
             request.onerror = reject;
@@ -96,11 +83,10 @@ function getAll(serverId: string): Promise<SyncedItem[]> {
                 }
             };
         }
-
     });
 }
 
-function get(serverId: string, key: string): Promise<SyncedItem> {
+function get(serverId: string, key: IDBValidKey): Promise<LocalItem> {
     return new Promise(async (resolve, reject) => {
         const db = await getDb(serverId);
 
@@ -111,15 +97,11 @@ function get(serverId: string, key: string): Promise<SyncedItem> {
         const request = objectStore.get(key);
 
         request.onerror = reject;
-
-        request.onsuccess = event => {
-            // Do something with the request.result!
-            resolve(request.result);
-        };
+        request.onsuccess = () => resolve(request.result);
     });
 }
 
-function set(serverId: string, key: string, val: SyncedItem) {
+function set(serverId: string, key: IDBValidKey, val: LocalItem): Promise<LocalItem> {
     return new Promise(async (resolve, reject) => {
         const db = await getDb(serverId);
 
@@ -130,11 +112,11 @@ function set(serverId: string, key: string, val: SyncedItem) {
         const request = objectStore.put(val, key);
 
         request.onerror = reject;
-        request.onsuccess = resolve;
+        request.onsuccess = () => resolve(val);
     });
 }
 
-function remove(serverId: string, key: string) {
+function remove(serverId: string, key: IDBValidKey): Promise<void> {
     return new Promise(async (resolve, reject) => {
         const db = await getDb(serverId);
 
@@ -145,11 +127,11 @@ function remove(serverId: string, key: string) {
         const request = objectStore.delete(key);
 
         request.onerror = reject;
-        request.onsuccess = resolve;
+        request.onsuccess = () => resolve();
     });
 }
 
-function clear(serverId: string) {
+function clear(serverId: string): Promise<void> {
     return new Promise(async (resolve, reject) => {
         const db = await getDb(serverId);
 
@@ -160,7 +142,7 @@ function clear(serverId: string) {
         const request = objectStore.clear();
 
         request.onerror = reject;
-        request.onsuccess = resolve;
+        request.onsuccess = () => resolve();
     });
 }
 

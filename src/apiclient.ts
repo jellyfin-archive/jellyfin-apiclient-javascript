@@ -1,31 +1,120 @@
+import { AppStorage } from "./appStorage";
 import events from "./events";
-import { CompRelation, Optional, ServerInfo, UrlOptions } from "./types";
-import { getDateParamValue, snbn } from "./utils";
+import { SyncDataResult } from "./sync/mediasync";
+import {
+    AllThemeMediaResult,
+    AuthenticationResult,
+    BaseDownloadRemoteImage,
+    BaseItemDto,
+    BaseItemsRequest,
+    BaseRemoteImageRequest,
+    CollectionType,
+    CompRelation,
+    ContentUploadHistory,
+    CountryInfo,
+    CreateUserByName,
+    CultureDto,
+    DeviceInfo,
+    DisplayPreferences,
+    EndPointInfo,
+    FileSystemEntryInfo,
+    GeneralCommand,
+    GetAncestors,
+    GetChannels,
+    GetCriticReviews,
+    GetDefaultTimer,
+    GetDirectoryContents,
+    GetEpisodes,
+    GetLatestMedia,
+    GetMovieRecommendations,
+    GetNextUpEpisodes,
+    GetNotifications,
+    GetPackages,
+    GetPlaybackInfo,
+    GetPrograms,
+    GetQueryFilters,
+    GetRecommendedPrograms,
+    GetRecordingGroups,
+    GetRecordings,
+    GetRecordingSeries,
+    GetScheduledTasks,
+    GetSearchHints,
+    GetSeasons,
+    GetSeriesTimers,
+    GetSimilarItems,
+    GetTimers,
+    GetUpcomingEpisodes,
+    GetUsers,
+    GetUserViews,
+    GuideInfo,
+    HasMediaId,
+    ImageInfo,
+    ImageProviderInfo,
+    ImageRequest,
+    ImageType,
+    InstallPackage,
+    ItemCounts,
+    ItemFilter,
+    ItemSortBy,
+    JobItem,
+    JsonRequestOptions,
+    LibraryOptions,
+    LiveTvInfo,
+    LocationType,
+    MediaPathInfo,
+    NotificationResult,
+    NotificationsSummary,
+    Optional,
+    PackageInfo,
+    PackageType,
+    PackageVersionClass,
+    ParentalRating,
+    PlaybackInfoResponse,
+    PlaybackProgressInfo,
+    PlaybackStartInfo,
+    PlaybackStopInfo,
+    PlaystateRequest,
+    PluginInfo,
+    PluginSecurityInfo,
+    PostFullCapabilities,
+    PublicSystemInfo,
+    QueryFilters,
+    QueryResult,
+    RecommendationDto,
+    RefreshItem,
+    RegistrationInfo,
+    RemoteImageResult,
+    RequestOptions,
+    SearchHintResult,
+    SendMessageCommand,
+    SeriesTimerInfoDto,
+    ServerConfiguration,
+    ServerInfo,
+    SessionInfo,
+    SortOrder,
+    SystemInfo,
+    TaskInfo,
+    TaskTriggerInfo,
+    TextRequestOptions,
+    TimerInfoDto,
+    UpdateItem,
+    UpdateUserEasyPassword,
+    UpdateUserPassword,
+    UrlOptions,
+    UserConfiguration,
+    UserDto,
+    UserItemDataDto,
+    UserPolicy,
+    VirtualFolderInfo,
+    WebSocketMessage
+} from "./types";
+import { assertNotNullish, getDateParamValue } from "./utils";
 
-function redetectBitrate(instance: ApiClient) {
-    stopBitrateDetection(instance);
-
-    if (
-        instance.accessToken() &&
-        instance.enableAutomaticBitrateDetection !== false
-    ) {
-        setTimeout(redetectBitrateInternal.bind(instance), 6000);
-    }
-}
-
-function redetectBitrateInternal() {
-    if (this.accessToken()) {
-        this.detectBitrate();
-    }
-}
-
-function stopBitrateDetection(instance) {
-    if (instance.detectTimeout) {
-        clearTimeout(instance.detectTimeout);
-    }
-}
-
-function replaceAll(originalString, strReplace, strWith) {
+function replaceAll(
+    originalString: string,
+    strReplace: string,
+    strWith: string
+) {
     const reg = new RegExp(strReplace, "ig");
     return originalString.replace(reg, strWith);
 }
@@ -46,7 +135,7 @@ function onFetchFail(
     ]);
 }
 
-function paramsToString(params: UrlOptions) {
+function paramsToString(params: object) {
     const values = [];
 
     for (const [key, value] of Object.entries(params)) {
@@ -61,13 +150,11 @@ function paramsToString(params: UrlOptions) {
 
 function fetchWithTimeout(
     url: string,
-    options: RequestInit,
+    options: RequestInit = {},
     timeoutMs: number
 ): Promise<Response> {
     return new Promise(async (resolve, reject) => {
         const timeout = setTimeout(reject, timeoutMs);
-
-        options = options || {};
         options.credentials = "same-origin";
         try {
             const response = await fetch(url, options);
@@ -80,7 +167,7 @@ function fetchWithTimeout(
     });
 }
 
-function getFetchPromise(request: any): Promise<Response> {
+function getFetchPromise(request: RequestOptions): Promise<Response> {
     const headers = request.headers || {};
 
     if (request.dataType === "json") {
@@ -125,24 +212,42 @@ function getFetchPromise(request: any): Promise<Response> {
  * @param {String} appVersion
  */
 export class ApiClient {
-    public appStorage: any;
-    protected serverInfo?: ServerInfo;
+    public get requireServerInfo(): ServerInfo {
+        if (!this.serverInfo) {
+            throw Error("Server info was unexpectedly undefined");
+        }
+
+        return this.serverInfo;
+    }
+    public appStorage: AppStorage;
+    public enableAutomaticBitrateDetection: Optional<boolean>;
+    public manualAddressOnly: boolean = false;
+    public onAuthenticated?: (
+        instance: ApiClient,
+        result: AuthenticationResult
+    ) => any;
+    public getMaxBandwidth?: () => number;
+
+    public serverInfo?: ServerInfo;
+
     private _serverAddress: string;
     private readonly _deviceId: string;
     private _deviceName: string;
     private readonly _appName: string;
     private readonly _appVersion: string;
     private readonly _devicePixelRatio: number;
-    private _currentUser: null | any = null;
+    private _currentUser: Optional<UserDto> = null;
     private _webSocket?: WebSocket;
     private enableAutomaticNetworking?: boolean;
     private lastFetch?: number;
     private lastDetectedBitrate?: number;
     private lastDetectedBitrateTime?: number;
-    private _endPointInfo?: any;
-    private _serverVersion?: string;
+    private _endPointInfo: Optional<EndPointInfo>;
+    private _serverVersion: Optional<string>;
     private lastPlaybackProgressReport?: number;
     private lastPlaybackProgressReportTicks?: null | number;
+    private messageIdsReceived: Record<string, boolean> = {};
+    private detectTimeout: Optional<ReturnType<typeof setTimeout>>;
 
     constructor(
         appStorage: any,
@@ -170,14 +275,6 @@ export class ApiClient {
         this._appName = appName;
         this._appVersion = appVersion;
         this._devicePixelRatio = devicePixelRatio;
-    }
-
-    public get requireServerInfo(): ServerInfo {
-        if (!this.serverInfo) {
-            throw Error("Server info was unexpectedly undefined");
-        }
-
-        return this.serverInfo;
     }
 
     public appName() {
@@ -258,7 +355,7 @@ export class ApiClient {
         this.lastDetectedBitrateTime = 0;
         this.setSavedEndpointInfo(null);
 
-        redetectBitrate(this);
+        this.redetectBitrate();
     }
 
     /**
@@ -266,7 +363,7 @@ export class ApiClient {
      */
     public getUrl(
         name: string,
-        params?: UrlOptions | null,
+        params?: object | null,
         serverAddress?: string
     ) {
         if (!name) {
@@ -376,10 +473,23 @@ export class ApiClient {
     /**
      * Wraps around jQuery ajax methods to add additional info to the request.
      */
-    public fetch(request: any, includeAuthorization?: boolean) {
-        if (!request) {
-            throw new Error("Request cannot be null");
-        }
+    public fetch<T>(
+        request: JsonRequestOptions,
+        includeAuthorization?: boolean
+    ): Promise<T>;
+    public fetch(
+        request: TextRequestOptions,
+        includeAuthorization?: boolean
+    ): Promise<string>;
+    public fetch(
+        request: RequestOptions,
+        includeAuthorization?: boolean
+    ): Promise<Response | string>;
+    public fetch<T = any>(
+        request: RequestOptions,
+        includeAuthorization?: boolean
+    ): Promise<T> {
+        assertNotNullish("request", request);
 
         request.headers = request.headers || {};
 
@@ -403,7 +513,7 @@ export class ApiClient {
                     if (response.status < 400) {
                         if (
                             request.dataType === "json" ||
-                            request.headers.accept === "application/json"
+                            request.headers?.accept === "application/json"
                         ) {
                             return response.json();
                         } else if (
@@ -436,7 +546,7 @@ export class ApiClient {
 
         this.requireServerInfo.AccessToken = accessKey;
         this.requireServerInfo.UserId = userId;
-        redetectBitrate(this);
+        this.redetectBitrate();
     }
 
     /**
@@ -448,7 +558,7 @@ export class ApiClient {
 
     public requireUserId(): string {
         const uid = this.serverInfo?.UserId;
-        snbn("userId", uid);
+        assertNotNullish("userId", uid);
         return uid!!;
     }
 
@@ -465,23 +575,9 @@ export class ApiClient {
     }
 
     /**
-     * Wraps around jQuery ajax methods to add additional info to the request.
+     * Gets or sets the current user.
      */
-    public ajax(
-        request: any,
-        includeAuthorization?: boolean
-    ): Promise<any> {
-        if (!request) {
-            throw new Error("Request cannot be null");
-        }
-
-        return this.fetch(request, includeAuthorization);
-    }
-
-    /**
-     * Gets or sets the current user id.
-     */
-    public getCurrentUser(enableCache?: boolean) {
+    public getCurrentUser(enableCache?: boolean): Promise<UserDto> {
         if (this._currentUser) {
             return Promise.resolve(this._currentUser);
         }
@@ -544,7 +640,7 @@ export class ApiClient {
      * Logout current user
      */
     public logout() {
-        stopBitrateDetection(this);
+        this.stopBitrateDetection();
         this.closeWebSocket();
 
         const done = () => {
@@ -558,7 +654,7 @@ export class ApiClient {
         if (this.accessToken()) {
             const url = this.getUrl("Sessions/Logout");
 
-            return this.ajax({
+            return this.fetch({
                 type: "POST",
                 url
             }).then(done, done);
@@ -571,11 +667,13 @@ export class ApiClient {
     /**
      * Authenticates a user
      */
-    public authenticateUserByName(name: string, password?: string) {
-        snbn("name", name);
+    public authenticateUserByName(
+        name: string,
+        password?: string
+    ): Promise<AuthenticationResult> {
+        assertNotNullish("name", name);
 
         const url = this.getUrl("Users/authenticatebyname");
-        const instance = this;
 
         return new Promise((resolve, reject) => {
             const postData = {
@@ -583,28 +681,26 @@ export class ApiClient {
                 Pw: password || ""
             };
 
-            this
-                .ajax({
-                    type: "POST",
-                    url,
-                    data: JSON.stringify(postData),
-                    dataType: "json",
-                    contentType: "application/json"
-                })
-                .then(result => {
-                    const afterOnAuthenticated = () => {
-                        redetectBitrate(instance);
-                        resolve(result);
-                    };
+            this.fetch<AuthenticationResult>({
+                type: "POST",
+                url,
+                data: JSON.stringify(postData),
+                dataType: "json",
+                contentType: "application/json"
+            }).then(result => {
+                const afterOnAuthenticated = () => {
+                    this.redetectBitrate();
+                    resolve(result);
+                };
 
-                    if (this.onAuthenticated) {
-                        this
-                            .onAuthenticated(instance, result)
-                            .then(afterOnAuthenticated);
-                    } else {
-                        afterOnAuthenticated();
-                    }
-                }, reject);
+                if (this.onAuthenticated) {
+                    this.onAuthenticated(this, result).then(
+                        afterOnAuthenticated
+                    );
+                } else {
+                    afterOnAuthenticated();
+                }
+            }, reject);
         });
     }
 
@@ -662,7 +758,7 @@ export class ApiClient {
     public sendWebSocketMessage(name: string, data: any) {
         console.log(`Sending web socket message: ${name}`);
 
-        const msg: any = { MessageType: name };
+        const msg: Partial<WebSocketMessage> = { MessageType: name };
 
         if (data) {
             msg.Data = data;
@@ -689,6 +785,7 @@ export class ApiClient {
         if (socket) {
             return socket.readyState === WebSocket.OPEN;
         }
+
         return false;
     }
 
@@ -701,18 +798,19 @@ export class ApiClient {
                 socket.readyState === WebSocket.CONNECTING
             );
         }
+
         return false;
     }
 
-    public get(url: string): any {
-        return this.ajax({
+    public get(url: string) {
+        return this.fetch({
             type: "GET",
             url
         });
     }
 
-    public getJSON(url: string, includeAuthorization?: boolean): Promise<any> {
-        return this.fetch(
+    public getJSON<T = any>(url: string, includeAuthorization?: boolean) {
+        return this.fetch<T>(
             {
                 url,
                 type: "GET",
@@ -726,7 +824,7 @@ export class ApiClient {
     }
 
     public updateServerInfo(server: ServerInfo, serverUrl?: string): void {
-        snbn("server", server);
+        assertNotNullish("server", server);
 
         this.serverInfo = server;
 
@@ -762,25 +860,25 @@ export class ApiClient {
         return val.substring(val.indexOf("=") + 1).replace("'", "%27");
     }
 
-    public getDownloadSpeed(byteSize: number): Promise<number> {
+    public async getDownloadSpeed(byteSize: number): Promise<number> {
         const url = this.getUrl("Playback/BitrateTest", {
             Size: byteSize.toString()
         });
 
         const now = new Date().getTime();
 
-        return this.ajax({
+        await this.fetch({
             type: "GET",
             url,
             timeout: 5000
-        }).then(() => {
-            const responseTimeSeconds = (new Date().getTime() - now) / 1000;
-            const bytesPerSecond = byteSize / responseTimeSeconds;
-            return Math.round(bytesPerSecond * 8);
         });
+
+        const responseTimeSeconds = (new Date().getTime() - now) / 1000;
+        const bytesPerSecond = byteSize / responseTimeSeconds;
+        return Math.round(bytesPerSecond * 8);
     }
 
-    public detectBitrate(force: boolean) {
+    public async detectBitrate(force: boolean = false) {
         if (
             !force &&
             this.lastDetectedBitrate &&
@@ -790,18 +888,23 @@ export class ApiClient {
             return Promise.resolve(this.lastDetectedBitrate);
         }
 
-        return this.getEndpointInfo().then(
-            info => this.detectBitrateWithEndpointInfo(info),
-            _ => this.detectBitrateWithEndpointInfo({})
-        );
+        try {
+            const info = await this.getEndpointInfo();
+            return await this.detectBitrateWithEndpointInfo(info);
+        } catch (err) {
+            return await this.detectBitrateWithEndpointInfo({});
+        }
     }
 
     /**
      * Gets an item from the server
      * Omit itemId to get the root folder.
      */
-    public getItem(userId: Optional<string>, itemId: string): any {
-        snbn("itemId", itemId);
+    public getItem(
+        userId: Optional<string>,
+        itemId: string
+    ): Promise<BaseItemDto> {
+        assertNotNullish("itemId", itemId);
 
         const url = userId
             ? this.getUrl(`Users/${userId}/Items/${itemId}`)
@@ -813,33 +916,42 @@ export class ApiClient {
     /**
      * Gets the root folder from the server
      */
-    public getRootFolder(userId: string): any {
-        snbn("userId", userId);
+    public getRootFolder(userId: string): Promise<BaseItemDto> {
+        assertNotNullish("userId", userId);
 
         const url = this.getUrl(`Users/${userId}/Items/Root`);
 
         return this.getJSON(url);
     }
 
-    public getNotificationSummary(userId: string): any {
-        snbn("userId", userId);
+    public getNotificationSummary(
+        userId: string
+    ): Promise<NotificationsSummary> {
+        assertNotNullish("userId", userId);
 
         const url = this.getUrl(`Notifications/${userId}/Summary`);
 
         return this.getJSON(url);
     }
 
-    public getNotifications(userId: string, options?: UrlOptions): any {
-        snbn("userId", userId);
+    public getNotifications(
+        userId: string,
+        options?: GetNotifications
+    ): Promise<NotificationResult> {
+        assertNotNullish("userId", userId);
 
         const url = this.getUrl(`Notifications/${userId}`, options || {});
 
         return this.getJSON(url);
     }
 
-    public markNotificationsRead(userId: string, idList: string[], isRead?: boolean): any {
-        snbn("userId", userId);
-        snbn("idList", idList);
+    public async markNotificationsRead(
+        userId: string,
+        idList: string[],
+        isRead?: boolean
+    ): Promise<void> {
+        assertNotNullish("userId", userId);
+        assertNotNullish("idList", idList);
 
         const suffix = isRead ? "Read" : "Unread";
 
@@ -850,24 +962,28 @@ export class ApiClient {
 
         const url = this.getUrl(`Notifications/${userId}/${suffix}`, params);
 
-        return this.ajax({
+        await this.fetch({
             type: "POST",
             url
         });
     }
 
-    public getRemoteImageProviders(options: UrlOptions): any {
-        snbn("options", options);
+    public getRemoteImageProviders(
+        options: HasMediaId
+    ): Promise<ImageProviderInfo[]> {
+        assertNotNullish("options", options);
 
         const urlPrefix = this.getRemoteImagePrefix(options);
 
-        const url = this.getUrl(`${urlPrefix}/RemoteImages/Providers`, options);
+        const url = this.getUrl(`${urlPrefix}/RemoteImages/Providers`);
 
         return this.getJSON(url);
     }
 
-    public getAvailableRemoteImages(options: UrlOptions): any {
-        snbn("options", options);
+    public getAvailableRemoteImages(
+        options: BaseRemoteImageRequest & HasMediaId
+    ): Promise<RemoteImageResult> {
+        assertNotNullish("options", options);
 
         const urlPrefix = this.getRemoteImagePrefix(options);
 
@@ -876,41 +992,45 @@ export class ApiClient {
         return this.getJSON(url);
     }
 
-    public downloadRemoteImage(options: UrlOptions): any {
-        snbn("options", options);
+    public async downloadRemoteImage(
+        options: BaseDownloadRemoteImage & HasMediaId
+    ): Promise<void> {
+        assertNotNullish("options", options);
 
         const urlPrefix = this.getRemoteImagePrefix(options);
 
         const url = this.getUrl(`${urlPrefix}/RemoteImages/Download`, options);
 
-        return this.ajax({
+        await this.fetch({
             type: "POST",
             url
         });
     }
 
-    public getRecordingFolders(userId: string): any {
-        snbn("userId", userId);
+    public getRecordingFolders(
+        userId: string
+    ): Promise<QueryResult<BaseItemDto>> {
+        assertNotNullish("userId", userId);
 
         const url = this.getUrl("LiveTv/Recordings/Folders", { userId });
 
         return this.getJSON(url);
     }
 
-    public getLiveTvInfo(options?: UrlOptions): any {
-        const url = this.getUrl("LiveTv/Info", options || {});
+    public getLiveTvInfo(): Promise<LiveTvInfo> {
+        const url = this.getUrl("LiveTv/Info");
 
         return this.getJSON(url);
     }
 
-    public getLiveTvGuideInfo(options?: UrlOptions): any {
-        const url = this.getUrl("LiveTv/GuideInfo", options || {});
+    public getLiveTvGuideInfo(): Promise<GuideInfo> {
+        const url = this.getUrl("LiveTv/GuideInfo");
 
         return this.getJSON(url);
     }
 
-    public getLiveTvChannel(id: string, userId?: string): any {
-        snbn("id", id);
+    public getLiveTvChannel(id: string, userId?: string): Promise<BaseItemDto> {
+        assertNotNullish("id", id);
 
         const options: UrlOptions = {};
 
@@ -923,66 +1043,84 @@ export class ApiClient {
         return this.getJSON(url);
     }
 
-    public getLiveTvChannels(options?: UrlOptions): any {
-        const url = this.getUrl("LiveTv/Channels", options || {});
+    public getLiveTvChannels(
+        options: GetChannels = {}
+    ): Promise<QueryResult<BaseItemDto>> {
+        const url = this.getUrl("LiveTv/Channels", options);
 
         return this.getJSON(url);
     }
 
-    public getLiveTvPrograms(options: UrlOptions = {}): any {
-        if (options.channelIds && (options.channelIds as string).length > 1800) {
-            return this.ajax({
+    public getLiveTvPrograms(
+        options: GetPrograms = {}
+    ): Promise<QueryResult<BaseItemDto>> {
+        if (
+            options.ChannelIds &&
+            (options.ChannelIds as string).length > 1800
+        ) {
+            return this.fetch({
                 type: "POST",
                 url: this.getUrl("LiveTv/Programs"),
                 data: JSON.stringify(options),
                 contentType: "application/json",
                 dataType: "json"
             });
-        } else {
-            return this.ajax({
-                type: "GET",
-                url: this.getUrl("LiveTv/Programs", options),
-                dataType: "json"
-            });
         }
+
+        return this.fetch({
+            type: "GET",
+            url: this.getUrl("LiveTv/Programs", options),
+            dataType: "json"
+        });
     }
 
-    public getLiveTvRecommendedPrograms(options: UrlOptions = {}): any {
-        return this.ajax({
+    public getLiveTvRecommendedPrograms(
+        options: GetRecommendedPrograms = {}
+    ): Promise<QueryResult<BaseItemDto>> {
+        return this.fetch({
             type: "GET",
             url: this.getUrl("LiveTv/Programs/Recommended", options),
             dataType: "json"
         });
     }
 
-    public getLiveTvRecordings(options?: UrlOptions): any {
-        const url = this.getUrl("LiveTv/Recordings", options || {});
+    public getLiveTvRecordings(
+        options: GetRecordings = {}
+    ): Promise<QueryResult<BaseItemDto>> {
+        const url = this.getUrl("LiveTv/Recordings", options);
 
         return this.getJSON(url);
     }
 
-    public getLiveTvRecordingSeries(options?: UrlOptions): any {
-        const url = this.getUrl("LiveTv/Recordings/Series", options || {});
+    public getLiveTvRecordingSeries(
+        options: GetRecordingSeries = {}
+    ): Promise<QueryResult<BaseItemDto>> {
+        const url = this.getUrl("LiveTv/Recordings/Series", options);
 
         return this.getJSON(url);
     }
 
-    public getLiveTvRecordingGroups(options?: UrlOptions): any {
-        const url = this.getUrl("LiveTv/Recordings/Groups", options || {});
+    public getLiveTvRecordingGroups(
+        options: GetRecordingGroups = {}
+    ): Promise<QueryResult<BaseItemDto>> {
+        const url = this.getUrl("LiveTv/Recordings/Groups", options);
 
         return this.getJSON(url);
     }
 
-    public getLiveTvRecordingGroup(id: string): any {
-        snbn("id", id);
+    public getLiveTvRecordingGroup(id: string): Promise<BaseItemDto> {
+        assertNotNullish("id", id);
 
         const url = this.getUrl(`LiveTv/Recordings/Groups/${id}`);
 
         return this.getJSON(url);
     }
 
-    public getLiveTvRecording(id: string, userId?: string): any {
-        snbn("id", id);
+    public getLiveTvRecording(
+        id: string,
+        userId?: string
+    ): Promise<BaseItemDto> {
+        assertNotNullish("id", id);
 
         const options: UrlOptions = {};
 
@@ -995,8 +1133,8 @@ export class ApiClient {
         return this.getJSON(url);
     }
 
-    public getLiveTvProgram(id: string, userId?: string): any {
-        snbn("id", id);
+    public getLiveTvProgram(id: string, userId?: string): Promise<BaseItemDto> {
+        assertNotNullish("id", id);
 
         const options: UrlOptions = {};
 
@@ -1009,54 +1147,58 @@ export class ApiClient {
         return this.getJSON(url);
     }
 
-    public deleteLiveTvRecording(id: string): any {
-        snbn("id", id);
+    public async deleteLiveTvRecording(id: string): Promise<void> {
+        assertNotNullish("id", id);
 
         const url = this.getUrl(`LiveTv/Recordings/${id}`);
 
-        return this.ajax({
+        await this.fetch({
             type: "DELETE",
             url
         });
     }
 
-    public cancelLiveTvTimer(id: string): any {
-        snbn("id", id);
+    public async cancelLiveTvTimer(id: string): Promise<void> {
+        assertNotNullish("id", id);
 
         const url = this.getUrl(`LiveTv/Timers/${id}`);
 
-        return this.ajax({
+        await this.fetch({
             type: "DELETE",
             url
         });
     }
 
-    public getLiveTvTimers(options?: UrlOptions): any {
-        const url = this.getUrl("LiveTv/Timers", options || {});
+    public getLiveTvTimers(
+        options: GetTimers = {}
+    ): Promise<QueryResult<TimerInfoDto>> {
+        const url = this.getUrl("LiveTv/Timers", options);
 
         return this.getJSON(url);
     }
 
-    public getLiveTvTimer(id: string): any {
-        snbn("id", id);
+    public getLiveTvTimer(id: string): Promise<TimerInfoDto> {
+        assertNotNullish("id", id);
 
         const url = this.getUrl(`LiveTv/Timers/${id}`);
 
         return this.getJSON(url);
     }
 
-    public getNewLiveTvTimerDefaults(options: UrlOptions = {}) {
+    public getNewLiveTvTimerDefaults(
+        options: GetDefaultTimer = {}
+    ): Promise<SeriesTimerInfoDto> {
         const url = this.getUrl("LiveTv/Timers/Defaults", options);
 
         return this.getJSON(url);
     }
 
-    public createLiveTvTimer(item: any): any {
-        snbn("item", item);
+    public async createLiveTvTimer(item: TimerInfoDto): Promise<void> {
+        assertNotNullish("item", item);
 
         const url = this.getUrl("LiveTv/Timers");
 
-        return this.ajax({
+        await this.fetch({
             type: "POST",
             url,
             data: JSON.stringify(item),
@@ -1064,12 +1206,12 @@ export class ApiClient {
         });
     }
 
-    public updateLiveTvTimer(item: any): any {
-        snbn("item", item);
+    public async updateLiveTvTimer(item: TimerInfoDto): Promise<void> {
+        assertNotNullish("item", item);
 
         const url = this.getUrl(`LiveTv/Timers/${item.Id}`);
 
-        return this.ajax({
+        await this.fetch({
             type: "POST",
             url,
             data: JSON.stringify(item),
@@ -1077,48 +1219,52 @@ export class ApiClient {
         });
     }
 
-    public resetLiveTvTuner(id: string): any {
-        snbn("id", id);
+    public async resetLiveTvTuner(id: string): Promise<void> {
+        assertNotNullish("id", id);
 
         const url = this.getUrl(`LiveTv/Tuners/${id}/Reset`);
 
-        return this.ajax({
+        await this.fetch({
             type: "POST",
             url
         });
     }
 
-    public getLiveTvSeriesTimers(options?: UrlOptions) {
-        const url = this.getUrl("LiveTv/SeriesTimers", options || {});
+    public getLiveTvSeriesTimers(
+        options: GetSeriesTimers = {}
+    ): Promise<QueryResult<SeriesTimerInfoDto>> {
+        const url = this.getUrl("LiveTv/SeriesTimers", options);
 
         return this.getJSON(url);
     }
 
-    public getLiveTvSeriesTimer(id: string): any {
-        snbn("id", id);
+    public getLiveTvSeriesTimer(id: string): Promise<SeriesTimerInfoDto> {
+        assertNotNullish("id", id);
 
         const url = this.getUrl(`LiveTv/SeriesTimers/${id}`);
 
         return this.getJSON(url);
     }
 
-    public cancelLiveTvSeriesTimer(id: string): any {
-        snbn("id", id);
+    public async cancelLiveTvSeriesTimer(id: string): Promise<void> {
+        assertNotNullish("id", id);
 
         const url = this.getUrl(`LiveTv/SeriesTimers/${id}`);
 
-        return this.ajax({
+        await this.fetch({
             type: "DELETE",
             url
         });
     }
 
-    public createLiveTvSeriesTimer(item: any): any {
-        snbn("item", item);
+    public async createLiveTvSeriesTimer(
+        item: Partial<SeriesTimerInfoDto>
+    ): Promise<void> {
+        assertNotNullish("item", item);
 
         const url = this.getUrl("LiveTv/SeriesTimers");
 
-        return this.ajax({
+        await this.fetch({
             type: "POST",
             url,
             data: JSON.stringify(item),
@@ -1126,12 +1272,14 @@ export class ApiClient {
         });
     }
 
-    public updateLiveTvSeriesTimer(item: any): any {
-        snbn("item", item);
+    public async updateLiveTvSeriesTimer(
+        item: Partial<SeriesTimerInfoDto>
+    ): Promise<void> {
+        assertNotNullish("item", item);
 
         const url = this.getUrl(`LiveTv/SeriesTimers/${item.Id}`);
 
-        return this.ajax({
+        await this.fetch({
             type: "POST",
             url,
             data: JSON.stringify(item),
@@ -1139,8 +1287,8 @@ export class ApiClient {
         });
     }
 
-    public getRegistrationInfo(feature: string): any {
-        snbn("feature", feature);
+    public getRegistrationInfo(feature: string): Promise<RegistrationInfo> {
+        assertNotNullish("feature", feature);
 
         const url = this.getUrl(`Registrations/${feature}`);
 
@@ -1150,25 +1298,22 @@ export class ApiClient {
     /**
      * Gets the current server status
      */
-    public getSystemInfo(itemId: string): any {
-        snbn("itemId", itemId);
+    public async getSystemInfo(itemId: string): Promise<SystemInfo> {
+        assertNotNullish("itemId", itemId);
 
         const url = this.getUrl("System/Info");
 
-        const instance = this;
-
-        return this.getJSON(url).then(info => {
-            instance.setSystemInfo(info);
-            return Promise.resolve(info);
-        });
+        const info = await this.getJSON(url);
+        this.setSystemInfo(info);
+        return info;
     }
 
-    public getSyncStatus(itemId: string): any {
-        snbn("itemId", itemId);
+    public getSyncStatus(itemId: string): Promise<any> {
+        assertNotNullish("itemId", itemId);
 
         const url = this.getUrl(`Sync/${itemId}/Status`);
 
-        return this.ajax({
+        return this.fetch({
             url,
             type: "POST",
             dataType: "json",
@@ -1182,75 +1327,92 @@ export class ApiClient {
     /**
      * Gets the current server status
      */
-    public getPublicSystemInfo(): any {
+    public async getPublicSystemInfo(): Promise<PublicSystemInfo> {
         const url = this.getUrl("System/Info/Public");
 
-        const instance = this;
-
-        return this.getJSON(url).then(info => {
-            instance.setSystemInfo(info);
-            return Promise.resolve(info);
-        });
+        const info = await this.getJSON(url);
+        this.setSystemInfo(info);
+        return info;
     }
 
-    public getInstantMixFromItem(itemId: string, options?: UrlOptions): any {
-        snbn("itemId", itemId);
+    public getInstantMixFromItem(
+        itemId: string,
+        options?: GetSimilarItems
+    ): Promise<QueryResult<BaseItemDto>> {
+        assertNotNullish("itemId", itemId);
 
         const url = this.getUrl(`Items/${itemId}/InstantMix`, options);
 
         return this.getJSON(url);
     }
 
-    public getEpisodes(itemId: string, options?: UrlOptions): any {
-        snbn("itemId", itemId);
+    public getEpisodes(
+        itemId: string,
+        options: GetEpisodes
+    ): Promise<QueryResult<BaseItemDto>> {
+        assertNotNullish("itemId", itemId);
+        assertNotNullish("options", options);
 
         const url = this.getUrl(`Shows/${itemId}/Episodes`, options);
 
         return this.getJSON(url);
     }
 
-    public getDisplayPreferences(id: string, userId: string, app: any): any {
-        snbn("id", id);
-        snbn("userId", userId);
-        snbn("app", app);
+    public getDisplayPreferences(
+        id: string,
+        userId: string,
+        client: string
+    ): Promise<DisplayPreferences> {
+        assertNotNullish("id", id);
+        assertNotNullish("userId", userId);
+        assertNotNullish("client", client);
 
         const url = this.getUrl(`DisplayPreferences/${id}`, {
             userId,
-            client: app
+            client
         });
 
         return this.getJSON(url);
     }
 
-    public updateDisplayPreferences(id: string, obj: any, userId: string, app: any): any {
-        snbn("id", id);
-        snbn("obj", obj);
-        snbn("userId", userId);
-        snbn("app", app);
+    public async updateDisplayPreferences(
+        id: string,
+        prefs: DisplayPreferences,
+        userId: string,
+        client: string
+    ): Promise<void> {
+        assertNotNullish("id", id);
+        assertNotNullish("prefs", prefs);
+        assertNotNullish("userId", userId);
+        assertNotNullish("app", client);
 
         const url = this.getUrl(`DisplayPreferences/${id}`, {
             userId,
-            client: app
+            client
         });
 
-        return this.ajax({
+        await this.fetch({
             type: "POST",
             url,
-            data: JSON.stringify(obj),
+            data: JSON.stringify(prefs),
             contentType: "application/json"
         });
     }
 
-    public getSeasons(itemId: string, options?: UrlOptions): any {
-
-
+    public getSeasons(
+        itemId: string,
+        options?: GetSeasons
+    ): Promise<QueryResult<BaseItemDto>> {
         const url = this.getUrl(`Shows/${itemId}/Seasons`, options);
 
         return this.getJSON(url);
     }
 
-    public getSimilarItems(itemId: string, options?: UrlOptions): any {
-        snbn("itemId", itemId);
+    public getSimilarItems(
+        itemId: string,
+        options?: GetSimilarItems
+    ): Promise<QueryResult<BaseItemDto>> {
+        assertNotNullish("itemId", itemId);
 
         const url = this.getUrl(`Items/${itemId}/Similar`, options);
 
@@ -1260,7 +1422,7 @@ export class ApiClient {
     /**
      * Gets all cultures known to the server
      */
-    public getCultures(): any {
+    public getCultures(): Promise<CultureDto[]> {
         const url = this.getUrl("Localization/cultures");
 
         return this.getJSON(url);
@@ -1269,37 +1431,35 @@ export class ApiClient {
     /**
      * Gets all countries known to the server
      */
-    public getCountries(): any {
+    public getCountries(): Promise<CountryInfo[]> {
         const url = this.getUrl("Localization/countries");
 
         return this.getJSON(url);
     }
 
-    public getPlaybackInfo(itemId: string, options: Optional<UrlOptions>, deviceProfile: any): any {
-        snbn("itemId", itemId);
-        snbn("deviceProfile", deviceProfile);
+    public getPlaybackInfo(
+        itemId: string,
+        options: GetPlaybackInfo = {}
+    ): Promise<PlaybackInfoResponse> {
+        assertNotNullish("itemId", itemId);
 
-        const postData = {
-            DeviceProfile: deviceProfile
-        };
-
-        return this.ajax({
+        return this.fetch({
             url: this.getUrl(`Items/${itemId}/PlaybackInfo`, options),
             type: "POST",
-            data: JSON.stringify(postData),
+            data: options,
             contentType: "application/json",
             dataType: "json"
         });
     }
 
-    public getLiveStreamMediaInfo(liveStreamId: string): any {
-        snbn("liveStreamId", liveStreamId);
+    public getLiveStreamMediaInfo(liveStreamId: string): Promise<any> {
+        assertNotNullish("liveStreamId", liveStreamId);
 
         const postData = {
             LiveStreamId: liveStreamId
         };
 
-        return this.ajax({
+        return this.fetch({
             url: this.getUrl("LiveStreams/MediaInfo"),
             type: "POST",
             data: JSON.stringify(postData),
@@ -1308,8 +1468,8 @@ export class ApiClient {
         });
     }
 
-    public getIntros(itemId: string): any {
-        snbn("itemId", itemId);
+    public getIntros(itemId: string): Promise<QueryResult<BaseItemDto>> {
+        assertNotNullish("itemId", itemId);
 
         return this.getJSON(
             this.getUrl(
@@ -1321,12 +1481,13 @@ export class ApiClient {
     /**
      * Gets the directory contents of a path on the server
      */
-    public getDirectoryContents(path: string, options?: UrlOptions): any {
-        snbn("path", path);
+    public getDirectoryContents(
+        path: string,
+        options: Partial<GetDirectoryContents> = {}
+    ): Promise<FileSystemEntryInfo[]> {
+        assertNotNullish("path", path);
 
-        options = options || {};
-
-        options.path = path;
+        options.Path = path;
 
         const url = this.getUrl("Environment/DirectoryContents", options);
 
@@ -1336,13 +1497,10 @@ export class ApiClient {
     /**
      * Gets shares from a network device
      */
-    public getNetworkShares(path: string): any {
-        snbn("path", path);
+    public getNetworkShares(path: string): Promise<FileSystemEntryInfo[]> {
+        assertNotNullish("path", path);
 
-        const options: UrlOptions = {};
-        options.path = path;
-
-        const url = this.getUrl("Environment/NetworkShares", options);
+        const url = this.getUrl("Environment/NetworkShares", { path });
 
         return this.getJSON(url);
     }
@@ -1350,15 +1508,12 @@ export class ApiClient {
     /**
      * Gets the parent of a given path
      */
-    public getParentPath(path: string): any {
-        snbn("path", path);
+    public getParentPath(path: string): Promise<string> {
+        assertNotNullish("path", path);
 
-        const options: UrlOptions = {};
-        options.path = path;
+        const url = this.getUrl("Environment/ParentPath", { path });
 
-        const url = this.getUrl("Environment/ParentPath", options);
-
-        return this.ajax({
+        return this.fetch({
             type: "GET",
             url,
             dataType: "text"
@@ -1368,7 +1523,7 @@ export class ApiClient {
     /**
      * Gets a list of physical drives from the server
      */
-    public getDrives(): any {
+    public getDrives(): Promise<FileSystemEntryInfo[]> {
         const url = this.getUrl("Environment/Drives");
 
         return this.getJSON(url);
@@ -1377,7 +1532,7 @@ export class ApiClient {
     /**
      * Gets a list of network devices from the server
      */
-    public getNetworkDevices(): any {
+    public getNetworkDevices(): Promise<FileSystemEntryInfo[]> {
         const url = this.getUrl("Environment/NetworkDevices");
 
         return this.getJSON(url);
@@ -1386,12 +1541,14 @@ export class ApiClient {
     /**
      * Cancels a package installation
      */
-    public cancelPackageInstallation(installationId: string): any {
-        snbn("installationId", installationId);
+    public async cancelPackageInstallation(
+        installationId: string
+    ): Promise<void> {
+        assertNotNullish("installationId", installationId);
 
         const url = this.getUrl(`Packages/Installing/${installationId}`);
 
-        return this.ajax({
+        await this.fetch({
             type: "DELETE",
             url
         });
@@ -1400,10 +1557,13 @@ export class ApiClient {
     /**
      * Refreshes metadata for an item
      */
-    public refreshItem(itemId: string, options?: UrlOptions): any {
+    public async refreshItem(
+        itemId: string,
+        options?: RefreshItem
+    ): Promise<void> {
         const url = this.getUrl(`Items/${itemId}/Refresh`, options || {});
 
-        return this.ajax({
+        await this.fetch({
             type: "POST",
             url
         });
@@ -1412,23 +1572,26 @@ export class ApiClient {
     /**
      * Installs or updates a new plugin
      */
-    public installPlugin(name: string, guid: string, updateClass: string, version?: string): any {
-        snbn("name", name);
-        snbn("guid", guid);
-        snbn("updateClass", updateClass);
+    public async installPlugin(
+        name: string,
+        guid?: string,
+        updateClass?: PackageVersionClass,
+        version?: string
+    ): Promise<void> {
+        assertNotNullish("name", name);
 
-        const options: UrlOptions = {
-            updateClass,
+        const options: InstallPackage = {
+            UpdateClass: updateClass,
             AssemblyGuid: guid
         };
 
         if (version) {
-            options.version = version;
+            options.Version = version;
         }
 
         const url = this.getUrl(`Packages/Installed/${name}`, options);
 
-        return this.ajax({
+        await this.fetch({
             type: "POST",
             url
         });
@@ -1437,10 +1600,10 @@ export class ApiClient {
     /**
      * Instructs the server to perform a restart.
      */
-    public restartServer(): any {
+    public async restartServer(): Promise<void> {
         const url = this.getUrl("System/Restart");
 
-        return this.ajax({
+        await this.fetch({
             type: "POST",
             url
         });
@@ -1449,10 +1612,10 @@ export class ApiClient {
     /**
      * Instructs the server to perform a shutdown.
      */
-    public shutdownServer(): any {
+    public async shutdownServer(): Promise<void> {
         const url = this.getUrl("System/Shutdown");
 
-        return this.ajax({
+        await this.fetch({
             type: "POST",
             url
         });
@@ -1461,11 +1624,10 @@ export class ApiClient {
     /**
      * Gets information about an installable package
      */
-    public getPackageInfo(name: string, guid: string): any {
-        snbn("name", name);
-        snbn("guid", guid);
+    public getPackageInfo(name: string, guid?: string): Promise<PackageInfo> {
+        assertNotNullish("name", name);
 
-        const options: UrlOptions = {
+        const options = {
             AssemblyGuid: guid
         };
 
@@ -1477,10 +1639,8 @@ export class ApiClient {
     /**
      * Gets the virtual folder list
      */
-    public getVirtualFolders(): any {
-        let url = "Library/VirtualFolders";
-
-        url = this.getUrl(url);
+    public getVirtualFolders(): Promise<VirtualFolderInfo[]> {
+        const url = this.getUrl("Library/VirtualFolders");
 
         return this.getJSON(url);
     }
@@ -1488,7 +1648,7 @@ export class ApiClient {
     /**
      * Gets all the paths of the locations in the physical root.
      */
-    public getPhysicalPaths(): any {
+    public getPhysicalPaths(): Promise<string[]> {
         const url = this.getUrl("Library/PhysicalPaths");
 
         return this.getJSON(url);
@@ -1497,25 +1657,19 @@ export class ApiClient {
     /**
      * Gets the current server configuration
      */
-    public getServerConfiguration(): any {
+    public getServerConfiguration(): Promise<ServerConfiguration> {
         const url = this.getUrl("System/Configuration");
 
         return this.getJSON(url);
     }
 
-    /**
-     * Gets the current server configuration
-     */
-    public getDevicesOptions(): any {
+    public getDevicesOptions(): Promise<QueryResult<DeviceInfo>> {
         const url = this.getUrl("System/Configuration/devices");
 
         return this.getJSON(url);
     }
 
-    /**
-     * Gets the current server configuration
-     */
-    public getContentUploadHistory(): any {
+    public getContentUploadHistory(): Promise<ContentUploadHistory> {
         const url = this.getUrl("Devices/CameraUploads", {
             DeviceId: this.deviceId()
         });
@@ -1523,8 +1677,8 @@ export class ApiClient {
         return this.getJSON(url);
     }
 
-    public getNamedConfiguration(name: string): any {
-        snbn("name", name);
+    public getNamedConfiguration(name: string): Promise<void> {
+        assertNotNullish("name", name);
 
         const url = this.getUrl(`System/Configuration/${name}`);
 
@@ -1534,7 +1688,9 @@ export class ApiClient {
     /**
      * Gets the server's scheduled tasks
      */
-    public getScheduledTasks(options: UrlOptions = {}): any {
+    public getScheduledTasks(
+        options: GetScheduledTasks = {}
+    ): Promise<TaskInfo[]> {
         const url = this.getUrl("ScheduledTasks", options);
 
         return this.getJSON(url);
@@ -1543,12 +1699,12 @@ export class ApiClient {
     /**
      * Starts a scheduled task
      */
-    public startScheduledTask(id: string): any {
-        snbn("id", id);
+    public async startScheduledTask(id: string): Promise<void> {
+        assertNotNullish("id", id);
 
         const url = this.getUrl(`ScheduledTasks/Running/${id}`);
 
-        return this.ajax({
+        await this.fetch({
             type: "POST",
             url
         });
@@ -1557,15 +1713,17 @@ export class ApiClient {
     /**
      * Gets a scheduled task
      */
-    public getScheduledTask(id: string): Promise<any> {
-        snbn("id", id);
+    public getScheduledTask(id: string): Promise<TaskInfo> {
+        assertNotNullish("id", id);
 
         const url = this.getUrl(`ScheduledTasks/${id}`);
 
         return this.getJSON(url);
     }
 
-    public getNextUpEpisodes(options?: UrlOptions): Promise<any> {
+    public getNextUpEpisodes(
+        options?: GetNextUpEpisodes
+    ): Promise<QueryResult<BaseItemDto>> {
         const url = this.getUrl("Shows/NextUp", options);
 
         return this.getJSON(url);
@@ -1574,12 +1732,12 @@ export class ApiClient {
     /**
      * Stops a scheduled task
      */
-    public stopScheduledTask(id: string): Promise<any> {
-        snbn("id", id);
+    public async stopScheduledTask(id: string): Promise<void> {
+        assertNotNullish("id", id);
 
         const url = this.getUrl(`ScheduledTasks/Running/${id}`);
 
-        return this.ajax({
+        await this.fetch({
             type: "DELETE",
             url
         });
@@ -1589,7 +1747,7 @@ export class ApiClient {
      * Gets the configuration of a plugin
      */
     public getPluginConfiguration(id: string): Promise<any> {
-        snbn("id", id);
+        assertNotNullish("id", id);
 
         const url = this.getUrl(`Plugins/${id}/Configuration`);
 
@@ -1599,8 +1757,10 @@ export class ApiClient {
     /**
      * Gets a list of plugins that are available to be installed
      */
-    public getAvailablePlugins(options: UrlOptions = {}): Promise<any> {
-        options.PackageType = "UserInstalled";
+    public getAvailablePlugins(
+        options: GetPackages = {}
+    ): Promise<PackageInfo[]> {
+        options.PackageType = PackageType.UserInstalled;
 
         const url = this.getUrl("Packages", options);
 
@@ -1610,12 +1770,12 @@ export class ApiClient {
     /**
      * Uninstalls a plugin
      */
-    public uninstallPlugin(id: string): Promise<any> {
-        snbn("id", id);
+    public async uninstallPlugin(id: string): Promise<void> {
+        assertNotNullish("id", id);
 
         const url = this.getUrl(`Plugins/${id}`);
 
-        return this.ajax({
+        await this.fetch({
             type: "DELETE",
             url
         });
@@ -1624,8 +1784,11 @@ export class ApiClient {
     /**
      * Removes a virtual folder
      */
-    public removeVirtualFolder(name: string, refreshLibrary?: boolean): Promise<any> {
-        snbn("name", name);
+    public async removeVirtualFolder(
+        name: string,
+        refreshLibrary?: boolean
+    ): Promise<void> {
+        assertNotNullish("name", name);
 
         let url = "Library/VirtualFolders";
 
@@ -1634,7 +1797,7 @@ export class ApiClient {
             name
         });
 
-        return this.ajax({
+        await this.fetch({
             type: "DELETE",
             url
         });
@@ -1643,8 +1806,13 @@ export class ApiClient {
     /**
      * Adds a virtual folder
      */
-    public addVirtualFolder(name: string, type?: string, refreshLibrary?: boolean, libraryOptions?: any): Promise<any> {
-        snbn("name", name);
+    public async addVirtualFolder(
+        name: string,
+        type?: CollectionType,
+        refreshLibrary?: boolean,
+        libraryOptions?: LibraryOptions
+    ): Promise<void> {
+        assertNotNullish("name", name);
 
         const options: UrlOptions = {};
 
@@ -1659,7 +1827,7 @@ export class ApiClient {
 
         url = this.getUrl(url, options);
 
-        return this.ajax({
+        await this.fetch({
             type: "POST",
             url,
             data: JSON.stringify({
@@ -1669,14 +1837,15 @@ export class ApiClient {
         });
     }
 
-    public updateVirtualFolderOptions(id: string, libraryOptions: any): Promise<any> {
-        snbn("id", id);
+    public async updateVirtualFolderOptions(
+        id: string,
+        libraryOptions: LibraryOptions
+    ): Promise<void> {
+        assertNotNullish("id", id);
 
-        let url = "Library/VirtualFolders/LibraryOptions";
+        const url = this.getUrl("Library/VirtualFolders/LibraryOptions");
 
-        url = this.getUrl(url);
-
-        return this.ajax({
+        await this.fetch({
             type: "POST",
             url,
             data: JSON.stringify({
@@ -1690,9 +1859,13 @@ export class ApiClient {
     /**
      * Renames a virtual folder
      */
-    public renameVirtualFolder(name: string, newName: string, refreshLibrary?: boolean): Promise<any> {
-        snbn("name", name);
-        snbn("newName", newName);
+    public async renameVirtualFolder(
+        name: string,
+        newName: string,
+        refreshLibrary?: boolean
+    ): Promise<void> {
+        assertNotNullish("name", name);
+        assertNotNullish("newName", newName);
 
         let url = "Library/VirtualFolders/Name";
 
@@ -1702,7 +1875,7 @@ export class ApiClient {
             name
         });
 
-        return this.ajax({
+        await this.fetch({
             type: "POST",
             url
         });
@@ -1711,19 +1884,20 @@ export class ApiClient {
     /**
      * Adds an additional mediaPath to an existing virtual folder
      */
-    public addMediaPath(
+    public async addMediaPath(
         virtualFolderName: string,
         mediaPath: string,
         networkSharePath?: string,
         refreshLibrary?: boolean
-    ): Promise<any> {
-        snbn("virtualFolderName", virtualFolderName);
-        snbn("mediaPath", mediaPath);
+    ): Promise<void> {
+        assertNotNullish("virtualFolderName", virtualFolderName);
+        assertNotNullish("mediaPath", mediaPath);
 
         let url = "Library/VirtualFolders/Paths";
 
-        const pathInfo: UrlOptions = {
-            Path: mediaPath
+        const pathInfo: MediaPathInfo = {
+            Path: mediaPath,
+            NetworkPath: null
         };
         if (networkSharePath) {
             pathInfo.NetworkPath = networkSharePath;
@@ -1733,7 +1907,7 @@ export class ApiClient {
             refreshLibrary: !!refreshLibrary
         });
 
-        return this.ajax({
+        await this.fetch({
             type: "POST",
             url,
             data: JSON.stringify({
@@ -1744,15 +1918,18 @@ export class ApiClient {
         });
     }
 
-    public updateMediaPath(virtualFolderName: string, pathInfo: string): Promise<any> {
-        snbn("virtualFolderName", virtualFolderName);
-        snbn("pathInfo", pathInfo);
+    public async updateMediaPath(
+        virtualFolderName: string,
+        pathInfo: MediaPathInfo
+    ): Promise<void> {
+        assertNotNullish("virtualFolderName", virtualFolderName);
+        assertNotNullish("pathInfo", pathInfo);
 
         let url = "Library/VirtualFolders/Paths/Update";
 
         url = this.getUrl(url);
 
-        return this.ajax({
+        await this.fetch({
             type: "POST",
             url,
             data: JSON.stringify({
@@ -1766,9 +1943,13 @@ export class ApiClient {
     /**
      * Removes a media path from a virtual folder
      */
-    public removeMediaPath(virtualFolderName: string, mediaPath: string, refreshLibrary?: boolean): Promise<any> {
-        snbn("virtualFolderName", virtualFolderName);
-        snbn("mediaPath", mediaPath);
+    public async removeMediaPath(
+        virtualFolderName: string,
+        mediaPath: string,
+        refreshLibrary?: boolean
+    ): Promise<void> {
+        assertNotNullish("virtualFolderName", virtualFolderName);
+        assertNotNullish("mediaPath", mediaPath);
 
         let url = "Library/VirtualFolders/Paths";
 
@@ -1778,7 +1959,7 @@ export class ApiClient {
             name: virtualFolderName
         });
 
-        return this.ajax({
+        await this.fetch({
             type: "DELETE",
             url
         });
@@ -1787,12 +1968,12 @@ export class ApiClient {
     /**
      * Deletes a user
      */
-    public deleteUser(id: string): Promise<any> {
-        snbn("id", id);
+    public async deleteUser(id: string): Promise<void> {
+        assertNotNullish("id", id);
 
         const url = this.getUrl(`Users/${id}`);
 
-        return this.ajax({
+        await this.fetch({
             type: "DELETE",
             url
         });
@@ -1801,9 +1982,13 @@ export class ApiClient {
     /**
      * Deletes a user image
      */
-    public deleteUserImage(userId: string, imageType: string, imageIndex?: string): Promise<any> {
-        snbn("userId", userId);
-        snbn("imageType", imageType);
+    public async deleteUserImage(
+        userId: string,
+        imageType: ImageType,
+        imageIndex?: number
+    ): Promise<void> {
+        assertNotNullish("userId", userId);
+        assertNotNullish("imageType", imageType);
 
         let url = this.getUrl(`Users/${userId}/Images/${imageType}`);
 
@@ -1811,16 +1996,20 @@ export class ApiClient {
             url += `/${imageIndex}`;
         }
 
-        return this.ajax({
+        await this.fetch({
             type: "DELETE",
             url
         });
     }
 
-    public deleteItemImage(itemId: string, imageType: string, imageIndex?: string): Promise<any> {
-        snbn("itemId", itemId);
-        snbn("imageType", imageType);
-        snbn("imageIndex", imageIndex);
+    public async deleteItemImage(
+        itemId: string,
+        imageType: ImageType,
+        imageIndex?: string
+    ): Promise<void> {
+        assertNotNullish("itemId", itemId);
+        assertNotNullish("imageType", imageType);
+        assertNotNullish("imageIndex", imageIndex);
 
         let url = this.getUrl(`Items/${itemId}/Images/${imageType}`);
 
@@ -1828,25 +2017,25 @@ export class ApiClient {
             url += `/${imageIndex}`;
         }
 
-        return this.ajax({
+        await this.fetch({
             type: "DELETE",
             url
         });
     }
 
-    public deleteItem(itemId: string): Promise<any> {
-        snbn("itemId", itemId);
+    public async deleteItem(itemId: string): Promise<void> {
+        assertNotNullish("itemId", itemId);
 
         const url = this.getUrl(`Items/${itemId}`);
 
-        return this.ajax({
+        await this.fetch({
             type: "DELETE",
             url
         });
     }
 
-    public stopActiveEncodings(playSessionId: string): Promise<any> {
-        snbn("playSessionId", playSessionId);
+    public async stopActiveEncodings(playSessionId: string): Promise<void> {
+        assertNotNullish("playSessionId", playSessionId);
 
         const options: UrlOptions = {
             deviceId: this.deviceId()
@@ -1858,16 +2047,18 @@ export class ApiClient {
 
         const url = this.getUrl("Videos/ActiveEncodings", options);
 
-        return this.ajax({
+        await this.fetch({
             type: "DELETE",
             url
         });
     }
 
-    public reportCapabilities(options?: UrlOptions): Promise<any> {
+    public async reportCapabilities(
+        options: PostFullCapabilities
+    ): Promise<void> {
         const url = this.getUrl("Sessions/Capabilities/Full");
 
-        return this.ajax({
+        await this.fetch({
             type: "POST",
             url,
             data: JSON.stringify(options),
@@ -1875,10 +2066,15 @@ export class ApiClient {
         });
     }
 
-    public updateItemImageIndex(itemId: string, imageType: string, imageIndex: string, newIndex: any): Promise<any> {
-        snbn("itemId", itemId);
-        snbn("imageType", imageType);
-        snbn("imageIndex", imageIndex);
+    public async updateItemImageIndex(
+        itemId: string,
+        imageType: ImageType,
+        imageIndex: Optional<number>,
+        newIndex: number
+    ): Promise<void> {
+        assertNotNullish("itemId", itemId);
+        assertNotNullish("imageType", imageType);
+        assertNotNullish("newIndex", newIndex);
 
         const options = { newIndex };
 
@@ -1887,30 +2083,33 @@ export class ApiClient {
             options
         );
 
-        return this.ajax({
+        await this.fetch({
             type: "POST",
             url
         });
     }
 
-    public getItemImageInfos(itemId: string): Promise<any> {
-        snbn("itemId", itemId);
+    public getItemImageInfos(itemId: string): Promise<ImageInfo[]> {
+        assertNotNullish("itemId", itemId);
 
         const url = this.getUrl(`Items/${itemId}/Images`);
 
         return this.getJSON(url);
     }
 
-    public getCriticReviews(itemId: string, options?: UrlOptions): Promise<any> {
-        snbn("itemId", itemId);
+    public getCriticReviews(
+        itemId: string,
+        options?: GetCriticReviews
+    ): Promise<QueryResult<BaseItemDto>> {
+        assertNotNullish("itemId", itemId);
 
         const url = this.getUrl(`Items/${itemId}/CriticReviews`, options);
 
         return this.getJSON(url);
     }
 
-    public getItemDownloadUrl(itemId: string): string {
-        snbn("itemId", itemId);
+    public async getItemDownloadUrl(itemId: string): Promise<string> {
+        assertNotNullish("itemId", itemId);
 
         const url = `Items/${itemId}/Download`;
 
@@ -1919,7 +2118,7 @@ export class ApiClient {
         });
     }
 
-    public getSessions(options?: UrlOptions): Promise<any> {
+    public getSessions(options?: UrlOptions): Promise<SessionInfo[]> {
         const url = this.getUrl("Sessions", options);
 
         return this.getJSON(url);
@@ -1928,13 +2127,17 @@ export class ApiClient {
     /**
      * Uploads a user image
      * @param {String} userId
-     * @param {String} imageType The type of image to delete, based on the server-side ImageType enum.
+     * @param {ImageType} imageType The type of image to delete, based on the server-side ImageType enum.
      * @param {Object} file The file from the input element
      */
-    public uploadUserImage(userId: string, imageType: string, file: File): Promise<any> {
-        snbn("userId", userId);
-        snbn("imageType", imageType);
-        snbn("file", file);
+    public uploadUserImage(
+        userId: string,
+        imageType: ImageType,
+        file: File
+    ): Promise<void> {
+        assertNotNullish("userId", userId);
+        assertNotNullish("imageType", imageType);
+        assertNotNullish("file", file);
 
         if (
             file.type !== "image/png" &&
@@ -1960,20 +2163,16 @@ export class ApiClient {
                 // Split by a comma to remove the url: prefix
                 const data = (e.target!.result as string).split(",")[1];
 
-                const url = this.getUrl(
-                    `Users/${userId}/Images/${imageType}`
-                );
+                const url = this.getUrl(`Users/${userId}/Images/${imageType}`);
 
-                this
-                    .ajax({
-                        type: "POST",
-                        url,
-                        data,
-                        contentType: `image/${file.name.substring(
-                            file.name.lastIndexOf(".") + 1
-                        )}`
-                    })
-                    .then(resolve, reject);
+                this.fetch({
+                    type: "POST",
+                    url,
+                    data,
+                    contentType: `image/${file.name.substring(
+                        file.name.lastIndexOf(".") + 1
+                    )}`
+                }).then(() => resolve(), reject);
             };
 
             // Read in the image file as a data URL.
@@ -1981,10 +2180,14 @@ export class ApiClient {
         });
     }
 
-    public uploadItemImage(itemId: string, imageType: string, file: File): Promise<any> {
-        snbn("itemId", itemId);
-        snbn("imageType", imageType);
-        snbn("file", file);
+    public uploadItemImage(
+        itemId: string,
+        imageType: ImageType,
+        file: File
+    ): Promise<void> {
+        assertNotNullish("itemId", itemId);
+        assertNotNullish("imageType", imageType);
+        assertNotNullish("file", file);
 
         if (
             file.type !== "image/png" &&
@@ -2014,16 +2217,14 @@ export class ApiClient {
                 // Split by a comma to remove the url: prefix
                 const data = (e.target!.result as string).split(",")[1];
 
-                this
-                    .ajax({
-                        type: "POST",
-                        url,
-                        data,
-                        contentType: `image/${file.name.substring(
-                            file.name.lastIndexOf(".") + 1
-                        )}`
-                    })
-                    .then(resolve, reject);
+                this.fetch({
+                    type: "POST",
+                    url,
+                    data,
+                    contentType: `image/${file.name.substring(
+                        file.name.lastIndexOf(".") + 1
+                    )}`
+                }).then(() => resolve(), reject);
             };
 
             // Read in the image file as a data URL.
@@ -2034,10 +2235,8 @@ export class ApiClient {
     /**
      * Gets the list of installed plugins on the server
      */
-    public getInstalledPlugins(): Promise<any> {
-        const options: UrlOptions = {};
-
-        const url = this.getUrl("Plugins", options);
+    public getInstalledPlugins(): Promise<PluginInfo[]> {
+        const url = this.getUrl("Plugins");
 
         return this.getJSON(url);
     }
@@ -2045,8 +2244,8 @@ export class ApiClient {
     /**
      * Gets a user by id
      */
-    public getUser(id: string): Promise<any> {
-        snbn("id", id);
+    public getUser(id: string): Promise<UserDto> {
+        assertNotNullish("id", id);
 
         const url = this.getUrl(`Users/${id}`);
 
@@ -2056,8 +2255,8 @@ export class ApiClient {
     /**
      * Gets a studio
      */
-    public getStudio(name: string, userId?: string): Promise<any> {
-        snbn("name", name);
+    public getStudio(name: string, userId?: string): Promise<BaseItemDto> {
+        assertNotNullish("name", name);
 
         const options: UrlOptions = {};
 
@@ -2073,8 +2272,8 @@ export class ApiClient {
     /**
      * Gets a genre
      */
-    public getGenre(name: string, userId?: string): Promise<any> {
-        snbn("name", name);
+    public getGenre(name: string, userId?: string): Promise<BaseItemDto> {
+        assertNotNullish("name", name);
 
         const options: UrlOptions = {};
 
@@ -2087,8 +2286,8 @@ export class ApiClient {
         return this.getJSON(url);
     }
 
-    public getMusicGenre(name: string, userId?: string): Promise<any> {
-        snbn("name", name);
+    public getMusicGenre(name: string, userId?: string): Promise<BaseItemDto> {
+        assertNotNullish("name", name);
 
         const options: UrlOptions = {};
 
@@ -2107,8 +2306,8 @@ export class ApiClient {
     /**
      * Gets an artist
      */
-    public getArtist(name: string, userId?: string): Promise<any> {
-        snbn("name", name);
+    public getArtist(name: string, userId?: string): Promise<BaseItemDto> {
+        assertNotNullish("name", name);
 
         const options: UrlOptions = {};
 
@@ -2124,8 +2323,8 @@ export class ApiClient {
     /**
      * Gets a Person
      */
-    public getPerson(name: string, userId?: string): Promise<any> {
-        snbn("name", name);
+    public getPerson(name: string, userId?: string): Promise<BaseItemDto> {
+        assertNotNullish("name", name);
 
         const options: UrlOptions = {};
 
@@ -2138,10 +2337,10 @@ export class ApiClient {
         return this.getJSON(url);
     }
 
-    public getPublicUsers(): Promise<any> {
+    public getPublicUsers(): Promise<UserDto[]> {
         const url = this.getUrl("users/public");
 
-        return this.ajax(
+        return this.fetch(
             {
                 type: "GET",
                 url,
@@ -2154,8 +2353,8 @@ export class ApiClient {
     /**
      * Gets all users from the server
      */
-    public getUsers(options?: UrlOptions): Promise<any> {
-        const url = this.getUrl("users", options || {});
+    public getUsers(options: GetUsers = {}): Promise<UserDto[]> {
+        const url = this.getUrl("users", options);
 
         return this.getJSON(url);
     }
@@ -2163,43 +2362,37 @@ export class ApiClient {
     /**
      * Gets all available parental ratings from the server
      */
-    public getParentalRatings(): Promise<any> {
+    public getParentalRatings(): Promise<ParentalRating[]> {
         const url = this.getUrl("Localization/ParentalRatings");
 
         return this.getJSON(url);
     }
 
-    public getDefaultImageQuality(imageType?: string): number {
+    public getDefaultImageQuality(imageType?: ImageType): number {
         return imageType?.toLowerCase() === "backdrop" ? 80 : 90;
     }
 
     /**
      * Constructs a url for a user image
      *
-     * Options supports the following properties:
-     * width - download the image at a fixed width
-     * height - download the image at a fixed height
-     * maxWidth - download the image at a maxWidth
-     * maxHeight - download the image at a maxHeight
-     * quality - A scale of 0-100. This should almost always be omitted as the default will suffice.
      * For best results do not specify both width and height together, as aspect ratio might be altered.
      */
-    public getUserImageUrl(userId: string, options?: UrlOptions): string {
-        snbn("userId", userId);
+    public getUserImageUrl(userId: string, options: ImageRequest): string {
+        assertNotNullish("userId", userId);
+        assertNotNullish("options", options);
+        assertNotNullish("options.Type", options.Type);
 
-        options = options || {};
+        let url = `Users/${userId}/Images/${options.Type}`;
 
-        let url = `Users/${userId}/Images/${options.type}`;
-
-        if (options.index != null) {
-            url += `/${options.index}`;
+        if (options.Index != null) {
+            url += `/${options.Index}`;
         }
 
         this.normalizeImageOptions(options);
 
         // Don't put these on the query string
-        delete options.type;
-        delete options.index;
+        delete options.Type;
+        delete options.Index;
 
         return this.getUrl(url, options);
     }
@@ -2207,101 +2400,99 @@ export class ApiClient {
     /**
      * Constructs a url for an item image
      *
-     * Options supports the following properties:
-     * type - Primary, logo, backdrop, etc. See the server-side enum ImageType
-     * index - When downloading a backdrop, use this to specify which one (omitting is equivalent to zero)
-     * width - download the image at a fixed width
-     * height - download the image at a fixed height
-     * maxWidth - download the image at a maxWidth
-     * maxHeight - download the image at a maxHeight
-     * quality - A scale of 0-100. This should almost always be omitted as the default will suffice.
      * For best results do not specify both width and height together, as aspect ratio might be altered.
      */
-    public getImageUrl(itemId: string, options?: UrlOptions): string {
-        snbn("itemId", itemId);
+    public getImageUrl(itemId: string, options: ImageRequest): string {
+        assertNotNullish("itemId", itemId);
+        assertNotNullish("options", options);
+        assertNotNullish("options.Type", options.Type);
 
-        options = options || {};
+        let url = `Items/${itemId}/Images/${options.Type}`;
 
-        let url = `Items/${itemId}/Images/${options.type}`;
-
-        if (options.index != null) {
-            url += `/${options.index}`;
+        if (options.Index != null) {
+            url += `/${options.Index}`;
         }
 
-        options.quality =
-            options.quality || this.getDefaultImageQuality(options.type as string | undefined);
+        options.Quality =
+            options.Quality || this.getDefaultImageQuality(options.Type);
 
         if (this.normalizeImageOptions) {
             this.normalizeImageOptions(options);
         }
 
         // Don't put these on the query string
-        delete options.type;
-        delete options.index;
+        delete options.Type;
+        delete options.Index;
 
         return this.getUrl(url, options);
     }
 
-    public getScaledImageUrl(itemId: string, options?: UrlOptions): string {
-        snbn("itemId", itemId);
+    public getScaledImageUrl(itemId: string, options: ImageRequest): string {
+        assertNotNullish("itemId", itemId);
+        assertNotNullish("options", options);
+        assertNotNullish("options.Type", options.Type);
 
-        options = options || {};
+        let url = `Items/${itemId}/Images/${options.Type}`;
 
-        let url = `Items/${itemId}/Images/${options.type}`;
-
-        if (options.index != null) {
-            url += `/${options.index}`;
+        if (options.Index != null) {
+            url += `/${options.Index}`;
         }
 
         this.normalizeImageOptions(options);
 
         // Don't put these on the query string
-        delete options.type;
-        delete options.index;
-        delete options.minScale;
+        delete options.Type;
+        delete options.Index;
+        delete options.MinScale;
 
         return this.getUrl(url, options);
     }
 
-    public getThumbImageUrl(item: any, options?: UrlOptions): string | null {
-        snbn("item", item);
+    public getThumbImageUrl(
+        item: any,
+        options?: Partial<ImageRequest>
+    ): string | null {
+        assertNotNullish("item", item);
 
-        options = options || {};
-
-        options.imageType = "thumb";
+        const fullOptions: ImageRequest = {
+            Type: ImageType.Thumb,
+            ...options
+        };
 
         if (item.ImageTags && item.ImageTags.Thumb) {
-            options.tag = item.ImageTags.Thumb;
-            return this.getImageUrl(item.Id, options);
+            fullOptions.Tag = item.ImageTags.Thumb;
+            return this.getImageUrl(item.Id, fullOptions);
         } else if (item.ParentThumbItemId) {
-            options.tag = item.ImageTags.ParentThumbImageTag;
-            return this.getImageUrl(item.ParentThumbItemId, options);
-        } else {
-            return null;
+            fullOptions.Tag = item.ImageTags.ParentThumbImageTag;
+            return this.getImageUrl(item.ParentThumbItemId, fullOptions);
         }
+
+        return null;
     }
 
     /**
      * Updates a user's password
      */
-    public updateUserPassword(
+    public async updateUserPassword(
         userId: string,
         currentPassword: string,
         newPassword: string
-    ): Promise<any> {
-        snbn("userId", userId);
-        snbn("currentPassword", currentPassword);
-        snbn("newPassword", newPassword);
+    ): Promise<void> {
+        assertNotNullish("userId", userId);
+        assertNotNullish("currentPassword", currentPassword);
+        assertNotNullish("newPassword", newPassword);
 
         const url = this.getUrl(`Users/${userId}/Password`);
 
-        return this.ajax({
+        const data: UpdateUserPassword = {
+            CurrentPw: currentPassword || "",
+            NewPw: newPassword
+        };
+
+        await this.fetch({
             type: "POST",
             url,
-            data: JSON.stringify({
-                CurrentPw: currentPassword || "",
-                NewPw: newPassword
-            }),
+            data: JSON.stringify(data),
             contentType: "application/json"
         });
     }
@@ -2311,18 +2502,23 @@ export class ApiClient {
      * @param {String} userId
      * @param {String} newPassword
      */
-    public updateEasyPassword(userId: string, newPassword: string) {
-        snbn("userId", userId);
-        snbn("newPassword", newPassword);
+    public async updateEasyPassword(
+        userId: string,
+        newPassword: string
+    ): Promise<void> {
+        assertNotNullish("userId", userId);
+        assertNotNullish("newPassword", newPassword);
 
         const url = this.getUrl(`Users/${userId}/EasyPassword`);
 
-        return this.ajax({
+        const data: UpdateUserEasyPassword = {
+            NewPw: newPassword
+        };
+
+        await this.fetch({
             type: "POST",
             url,
-            data: {
-                NewPw: newPassword
-            }
+            data
         });
     }
 
@@ -2330,32 +2526,32 @@ export class ApiClient {
      * Resets a user's password
      * @param {String} userId
      */
-    public resetUserPassword(userId: string): Promise<any> {
-        snbn("userId", userId);
+    public async resetUserPassword(userId: string): Promise<void> {
+        assertNotNullish("userId", userId);
 
         const url = this.getUrl(`Users/${userId}/Password`);
 
-        const postData: any = {};
+        const data: UpdateUserPassword = {
+            ResetPassword: true
+        };
 
-        postData.resetPassword = true;
-
-        return this.ajax({
+        await this.fetch({
             type: "POST",
             url,
-            data: postData
+            data
         });
     }
 
-    public resetEasyPassword(userId: string): Promise<any> {
-        snbn("userId", userId);
+    public async resetEasyPassword(userId: string): Promise<void> {
+        assertNotNullish("userId", userId);
 
         const url = this.getUrl(`Users/${userId}/EasyPassword`);
 
-        const postData: any = {};
+        const postData: UpdateUserEasyPassword = {
+            ResetPassword: true
+        };
 
-        postData.resetPassword = true;
-
-        return this.ajax({
+        await this.fetch({
             type: "POST",
             url,
             data: postData
@@ -2366,12 +2562,14 @@ export class ApiClient {
      * Updates the server's configuration
      * @param {Object} configuration
      */
-    public updateServerConfiguration(configuration: any): Promise<any> {
-        snbn("configuration", configuration);
+    public async updateServerConfiguration(
+        configuration: ServerConfiguration
+    ): Promise<void> {
+        assertNotNullish("configuration", configuration);
 
         const url = this.getUrl("System/Configuration");
 
-        return this.ajax({
+        await this.fetch({
             type: "POST",
             url,
             data: JSON.stringify(configuration),
@@ -2379,13 +2577,16 @@ export class ApiClient {
         });
     }
 
-    public updateNamedConfiguration(name: string, configuration: any): Promise<any> {
-        snbn("name", name);
-        snbn("configuration", configuration);
+    public async updateNamedConfiguration(
+        name: string,
+        configuration: any
+    ): Promise<void> {
+        assertNotNullish("name", name);
+        assertNotNullish("configuration", configuration);
 
         const url = this.getUrl(`System/Configuration/${name}`);
 
-        return this.ajax({
+        await this.fetch({
             type: "POST",
             url,
             data: JSON.stringify(configuration),
@@ -2393,12 +2594,12 @@ export class ApiClient {
         });
     }
 
-    public updateItem(item: any): Promise<any> {
-        snbn("item", item);
+    public async updateItem(item: UpdateItem): Promise<void> {
+        assertNotNullish("item", item);
 
         const url = this.getUrl(`Items/${item.Id}`);
 
-        return this.ajax({
+        await this.fetch({
             type: "POST",
             url,
             data: JSON.stringify(item),
@@ -2409,12 +2610,14 @@ export class ApiClient {
     /**
      * Updates plugin security info
      */
-    public updatePluginSecurityInfo(info: any): Promise<any> {
-        snbn("info", info);
+    public async updatePluginSecurityInfo(
+        info: PluginSecurityInfo
+    ): Promise<void> {
+        assertNotNullish("info", info);
 
         const url = this.getUrl("Plugins/SecurityInfo");
 
-        return this.ajax({
+        await this.fetch({
             type: "POST",
             url,
             data: JSON.stringify(info),
@@ -2425,14 +2628,15 @@ export class ApiClient {
     /**
      * Creates a user
      */
-    public createUser(user: any): Promise<any> {
-        snbn("user", user);
+    public createUser(user: CreateUserByName): Promise<UserDto> {
+        assertNotNullish("user", user);
 
         const url = this.getUrl("Users/New");
-        return this.ajax({
+        return this.fetch({
             type: "POST",
             url,
             data: JSON.stringify(user),
+            dataType: "json",
             contentType: "application/json"
         });
     }
@@ -2440,12 +2644,12 @@ export class ApiClient {
     /**
      * Updates a user
      */
-    public updateUser(user: any): Promise<any> {
-        snbn("user", user);
+    public async updateUser(user: Partial<UserDto>): Promise<void> {
+        assertNotNullish("user", user);
 
         const url = this.getUrl(`Users/${user.Id}`);
 
-        return this.ajax({
+        await this.fetch({
             type: "POST",
             url,
             data: JSON.stringify(user),
@@ -2453,13 +2657,16 @@ export class ApiClient {
         });
     }
 
-    public updateUserPolicy(userId: string, policy: any): Promise<any> {
-        snbn("userId", userId);
-        snbn("policy", policy);
+    public async updateUserPolicy(
+        userId: string,
+        policy: Partial<UserPolicy>
+    ): Promise<void> {
+        assertNotNullish("userId", userId);
+        assertNotNullish("policy", policy);
 
         const url = this.getUrl(`Users/${userId}/Policy`);
 
-        return this.ajax({
+        await this.fetch({
             type: "POST",
             url,
             data: JSON.stringify(policy),
@@ -2467,13 +2674,16 @@ export class ApiClient {
         });
     }
 
-    public updateUserConfiguration(userId: string, configuration: any): Promise<any> {
-        snbn("userId", userId);
-        snbn("configuration", configuration);
+    public async updateUserConfiguration(
+        userId: string,
+        configuration: Partial<UserConfiguration>
+    ): Promise<void> {
+        assertNotNullish("userId", userId);
+        assertNotNullish("configuration", configuration);
 
         const url = this.getUrl(`Users/${userId}/Configuration`);
 
-        return this.ajax({
+        await this.fetch({
             type: "POST",
             url,
             data: JSON.stringify(configuration),
@@ -2484,13 +2694,16 @@ export class ApiClient {
     /**
      * Updates the Triggers for a ScheduledTask
      */
-    public updateScheduledTaskTriggers(id: string, triggers: any): Promise<any> {
-        snbn("id", id);
-        snbn("triggers", triggers);
+    public async updateScheduledTaskTriggers(
+        id: string,
+        triggers: Array<Partial<TaskTriggerInfo>>
+    ): Promise<void> {
+        assertNotNullish("id", id);
+        assertNotNullish("triggers", triggers);
 
         const url = this.getUrl(`ScheduledTasks/${id}/Triggers`);
 
-        return this.ajax({
+        await this.fetch({
             type: "POST",
             url,
             data: JSON.stringify(triggers),
@@ -2501,13 +2714,16 @@ export class ApiClient {
     /**
      * Updates a plugin's configuration
      */
-    public updatePluginConfiguration(id: string, configuration: any): Promise<any> {
-        snbn("id", id);
-        snbn("configuration", configuration);
+    public async updatePluginConfiguration(
+        pluginId: string,
+        configuration: any
+    ): Promise<void> {
+        assertNotNullish("pluginId", pluginId);
+        assertNotNullish("configuration", configuration);
 
-        const url = this.getUrl(`Plugins/${id}/Configuration`);
+        const url = this.getUrl(`Plugins/${pluginId}/Configuration`);
 
-        return this.ajax({
+        await this.fetch({
             type: "POST",
             url,
             data: JSON.stringify(configuration),
@@ -2515,13 +2731,16 @@ export class ApiClient {
         });
     }
 
-    public getAncestorItems(itemId: string, userId?: string): Promise<any> {
-        snbn("itemId", itemId);
+    public getAncestorItems(
+        itemId: string,
+        userId?: string
+    ): Promise<BaseItemDto[]> {
+        assertNotNullish("itemId", itemId);
 
-        const options: UrlOptions = {};
+        const options: GetAncestors = {};
 
         if (userId) {
-            options.userId = userId;
+            options.UserId = userId;
         }
 
         const url = this.getUrl(`Items/${itemId}/Ancestors`, options);
@@ -2531,26 +2750,14 @@ export class ApiClient {
 
     /**
      * Gets items based on a query, typically for children of a folder
-     *
-     * Options accepts the following properties:
-     * itemId - Localize the search to a specific folder (root if omitted)
-     * startIndex - Use for paging
-     * limit - Use to limit results to a certain number of items
-     * filter - Specify one or more ItemFilters, comma delimeted (see server-side enum)
-     * sortBy - Specify an ItemSortBy (comma-delimeted list see server-side enum)
-     * sortOrder - ascending/descending
-     * fields - additional fields to include aside from basic info. This is a comma delimited list. See server-side enum ItemFields.
-     * index - the name of the dynamic, localized index function
-     * dynamicSortBy - the name of the dynamic localized sort function
-     * recursive - Whether or not the query should be recursive
-     * searchTerm - search term to use as a filter
      */
-    public getItems(userId: string, options?: UrlOptions): Promise<any> {
-        snbn("userId", userId);
-
+    public getItems(
+        userId: Optional<string>,
+        options?: BaseItemsRequest
+    ): Promise<QueryResult<BaseItemDto>> {
         let url;
 
-        if ((typeof userId).toString().toLowerCase() === "string") {
+        if (userId) {
             url = this.getUrl(`Users/${userId}/Items`, options);
         } else {
             url = this.getUrl("Items", options);
@@ -2559,8 +2766,11 @@ export class ApiClient {
         return this.getJSON(url);
     }
 
-    public getResumableItems(userId: string, options?: UrlOptions): Promise<any> {
-        snbn("userId", userId);
+    public getResumableItems(
+        userId: string,
+        options?: BaseItemsRequest
+    ): Promise<QueryResult<BaseItemDto>> {
+        assertNotNullish("userId", userId);
 
         if (this.isMinServerVersion("3.2.33")) {
             return this.getJSON(
@@ -2568,32 +2778,34 @@ export class ApiClient {
             );
         }
 
-        return this.getItems(
-            userId,
-            Object.assign(
-                {
-                    SortBy: "DatePlayed",
-                    SortOrder: "Descending",
-                    Filters: "IsResumable",
-                    Recursive: true,
-                    CollapseBoxSetItems: false,
-                    ExcludeLocationTypes: "Virtual"
-                },
-                options
-            )
-        );
+        return this.getItems(userId, {
+            SortBy: ItemSortBy.DatePlayed,
+            SortOrder: SortOrder.Descending,
+            Filters: ItemFilter.IsResumable,
+            Recursive: true,
+            CollapseBoxSetItems: false,
+            ExcludeLocationTypes: LocationType.Virtual,
+            ...options
+        });
     }
 
-    public getMovieRecommendations(options?: UrlOptions): Promise<any> {
+    public getMovieRecommendations(
+        options?: GetMovieRecommendations
+    ): Promise<RecommendationDto[]> {
         return this.getJSON(this.getUrl("Movies/Recommendations", options));
     }
 
-    public getUpcomingEpisodes(options?: UrlOptions): Promise<any> {
+    public getUpcomingEpisodes(
+        options?: GetUpcomingEpisodes
+    ): Promise<QueryResult<BaseItemDto>> {
         return this.getJSON(this.getUrl("Shows/Upcoming", options));
     }
 
-    public getUserViews(options: UrlOptions = {}, userId: string): Promise<any> {
-        snbn("userId", userId);
+    public getUserViews(
+        options: GetUserViews,
+        userId: string
+    ): Promise<QueryResult<BaseItemDto>> {
+        assertNotNullish("userId", userId);
 
         const url = this.getUrl(
             `Users/${userId || this.getCurrentUserId()}/Views`,
@@ -2606,11 +2818,13 @@ export class ApiClient {
     /**
      * Gets artists from an item
      */
-    public getArtists(userId: string, options?: UrlOptions): Promise<any> {
-        snbn("userId", userId);
+    public getArtists(
+        userId: string,
+        options: BaseItemsRequest = {}
+    ): Promise<QueryResult<BaseItemDto>> {
+        assertNotNullish("userId", userId);
 
-        options = options || {};
-        options.userId = userId;
+        options.UserId = userId;
 
         const url = this.getUrl("Artists", options);
 
@@ -2620,11 +2834,13 @@ export class ApiClient {
     /**
      * Gets artists from an item
      */
-    public getAlbumArtists(userId: string, options?: UrlOptions): Promise<any> {
-        snbn("userId", userId);
+    public getAlbumArtists(
+        userId: string,
+        options: BaseItemsRequest = {}
+    ): Promise<QueryResult<BaseItemDto>> {
+        assertNotNullish("userId", userId);
 
-        options = options || {};
-        options.userId = userId;
+        options.UserId = userId;
 
         const url = this.getUrl("Artists/AlbumArtists", options);
 
@@ -2634,22 +2850,26 @@ export class ApiClient {
     /**
      * Gets genres from an item
      */
-    public getGenres(userId: string, options?: UrlOptions): Promise<any> {
-        snbn("userId", userId);
+    public getGenres(
+        userId: string,
+        options: BaseItemsRequest = {}
+    ): Promise<QueryResult<BaseItemDto>> {
+        assertNotNullish("userId", userId);
 
-        options = options || {};
-        options.userId = userId;
+        options.UserId = userId;
 
         const url = this.getUrl("Genres", options);
 
         return this.getJSON(url);
     }
 
-    public getMusicGenres(userId: string, options?: UrlOptions): Promise<any> {
-        snbn("userId", userId);
+    public getMusicGenres(
+        userId: string,
+        options: BaseItemsRequest = {}
+    ): Promise<QueryResult<BaseItemDto>> {
+        assertNotNullish("userId", userId);
 
-        options = options || {};
-        options.userId = userId;
+        options.UserId = userId;
 
         const url = this.getUrl("MusicGenres", options);
 
@@ -2659,11 +2879,13 @@ export class ApiClient {
     /**
      * Gets people from an item
      */
-    public getPeople(userId: string, options?: UrlOptions): Promise<any> {
-        snbn("userId", userId);
+    public getPeople(
+        userId: string,
+        options: BaseItemsRequest = {}
+    ): Promise<QueryResult<BaseItemDto>> {
+        assertNotNullish("userId", userId);
 
-        options = options || {};
-        options.userId = userId;
+        options.UserId = userId;
 
         const url = this.getUrl("Persons", options);
 
@@ -2673,11 +2895,13 @@ export class ApiClient {
     /**
      * Gets studios from an item
      */
-    public getStudios(userId: string, options?: UrlOptions): Promise<any> {
-        snbn("userId", userId);
+    public getStudios(
+        userId: string,
+        options: BaseItemsRequest = {}
+    ): Promise<QueryResult<BaseItemDto>> {
+        assertNotNullish("userId", userId);
 
-        options = options || {};
-        options.userId = userId;
+        options.UserId = userId;
 
         const url = this.getUrl("Studios", options);
 
@@ -2687,9 +2911,12 @@ export class ApiClient {
     /**
      * Gets local trailers for an item
      */
-    public getLocalTrailers(userId: string, itemId: string): Promise<any> {
-        snbn("userId", userId);
-        snbn("itemId", itemId);
+    public getLocalTrailers(
+        userId: string,
+        itemId: string
+    ): Promise<BaseItemDto[]> {
+        assertNotNullish("userId", userId);
+        assertNotNullish("itemId", itemId);
 
         const url = this.getUrl(
             `Users/${userId}/Items/${itemId}/LocalTrailers`
@@ -2701,8 +2928,8 @@ export class ApiClient {
     public getAdditionalVideoParts(
         userId: Optional<string>,
         itemId: string
-    ): Promise<any> {
-        snbn("itemId", itemId);
+    ): Promise<QueryResult<BaseItemDto>> {
+        assertNotNullish("itemId", itemId);
 
         const options: UrlOptions = {};
 
@@ -2718,41 +2945,45 @@ export class ApiClient {
     public getThemeMedia(
         userId: Optional<string>,
         itemId: string,
-        inherit: boolean
-    ): Promise<any> {
-        snbn("itemId", itemId);
+        inherit?: boolean
+    ): Promise<AllThemeMediaResult> {
+        assertNotNullish("itemId", itemId);
 
-        const options: UrlOptions = {};
+        const options: UrlOptions = {
+            InheritFromParent: inherit ?? false
+        };
 
         if (userId) {
-            options.userId = userId;
+            options.UserId = userId;
         }
-
-        options.InheritFromParent = inherit || false;
 
         const url = this.getUrl(`Items/${itemId}/ThemeMedia`, options);
 
         return this.getJSON(url);
     }
 
-    public getSearchHints(options: UrlOptions): Promise<any> {
+    public async getSearchHints(
+        options?: GetSearchHints
+    ): Promise<SearchHintResult> {
         const url = this.getUrl("Search/Hints", options);
         const serverId = this.serverId();
 
-        return this.getJSON(url).then(result => {
-            result.SearchHints.forEach((i: any) => {
-                i.ServerId = serverId;
-            });
-            return result;
+        const result = await this.getJSON<SearchHintResult>(url);
+        result.SearchHints.forEach(i => {
+            i.ServerId = serverId!;
         });
+        return result;
     }
 
     /**
      * Gets special features for an item
      */
-    public getSpecialFeatures(userId: string, itemId: string): Promise<any> {
-        snbn("userId", userId);
-        snbn("itemId", itemId);
+    public getSpecialFeatures(
+        userId: string,
+        itemId: string
+    ): Promise<BaseItemDto[]> {
+        assertNotNullish("userId", userId);
+        assertNotNullish("itemId", itemId);
 
         const url = this.getUrl(
             `Users/${userId}/Items/${itemId}/SpecialFeatures`
@@ -2761,9 +2992,13 @@ export class ApiClient {
         return this.getJSON(url);
     }
 
-    public markPlayed(userId: string, itemId: string, date: Date): Promise<any> {
-        snbn("userId", userId);
-        snbn("itemId", itemId);
+    public markPlayed(
+        userId: string,
+        itemId: string,
+        date?: Date
+    ): Promise<UserItemDataDto> {
+        assertNotNullish("userId", userId);
+        assertNotNullish("itemId", itemId);
 
         const options: UrlOptions = {};
 
@@ -2776,20 +3011,23 @@ export class ApiClient {
             options
         );
 
-        return this.ajax({
+        return this.fetch({
             type: "POST",
             url,
             dataType: "json"
         });
     }
 
-    public markUnplayed(userId: string, itemId: string): Promise<any> {
-        snbn("userId", userId);
-        snbn("itemId", itemId);
+    public markUnplayed(
+        userId: string,
+        itemId: string
+    ): Promise<UserItemDataDto> {
+        assertNotNullish("userId", userId);
+        assertNotNullish("itemId", itemId);
 
         const url = this.getUrl(`Users/${userId}/PlayedItems/${itemId}`);
 
-        return this.ajax({
+        return this.fetch({
             type: "DELETE",
             url,
             dataType: "json"
@@ -2803,15 +3041,16 @@ export class ApiClient {
         userId: string,
         itemId: string,
         isFavorite: boolean
-    ): Promise<any> {
-        snbn("userId", userId);
-        snbn("itemId", itemId);
+    ): Promise<void> {
+        assertNotNullish("userId", userId);
+        assertNotNullish("itemId", itemId);
+        assertNotNullish("isFavorite", isFavorite);
 
         const url = this.getUrl(`Users/${userId}/FavoriteItems/${itemId}`);
 
         const method = isFavorite ? "POST" : "DELETE";
 
-        return this.ajax({
+        return this.fetch({
             type: method,
             url,
             dataType: "json"
@@ -2825,22 +3064,23 @@ export class ApiClient {
         userId: string,
         itemId: string,
         likes: boolean
-    ): Promise<any> {
-        snbn("userId", userId);
-        snbn("itemId", itemId);
+    ): Promise<UserItemDataDto> {
+        assertNotNullish("userId", userId);
+        assertNotNullish("itemId", itemId);
+        assertNotNullish("likes", likes);
 
         const url = this.getUrl(`Users/${userId}/Items/${itemId}/Rating`, {
             likes
         });
 
-        return this.ajax({
+        return this.fetch({
             type: "POST",
             url,
             dataType: "json"
         });
     }
 
-    public getItemCounts(userId: string): Promise<any> {
+    public getItemCounts(userId: string): Promise<ItemCounts> {
         const options: UrlOptions = {};
 
         if (userId) {
@@ -2855,13 +3095,16 @@ export class ApiClient {
     /**
      * Clears a user's personal rating for an item
      */
-    public clearUserItemRating(userId: string, itemId: string): Promise<any> {
-        snbn("userId", userId);
-        snbn("itemId", itemId);
+    public clearUserItemRating(
+        userId: string,
+        itemId: string
+    ): Promise<UserItemDataDto> {
+        assertNotNullish("userId", userId);
+        assertNotNullish("itemId", itemId);
 
         const url = this.getUrl(`Users/${userId}/Items/${itemId}/Rating`);
 
-        return this.ajax({
+        return this.fetch({
             type: "DELETE",
             url,
             dataType: "json"
@@ -2871,16 +3114,18 @@ export class ApiClient {
     /**
      * Reports the user has started playing something
      */
-    public reportPlaybackStart(options: any): Promise<any> {
-        snbn("options", options);
+    public async reportPlaybackStart(
+        options: PlaybackStartInfo
+    ): Promise<void> {
+        assertNotNullish("options", options);
 
         this.lastPlaybackProgressReport = 0;
         this.lastPlaybackProgressReportTicks = null;
-        stopBitrateDetection(this);
+        this.stopBitrateDetection();
 
         const url = this.getUrl("Sessions/Playing");
 
-        return this.ajax({
+        await this.fetch({
             type: "POST",
             data: JSON.stringify(options),
             contentType: "application/json",
@@ -2891,8 +3136,10 @@ export class ApiClient {
     /**
      * Reports progress viewing an item
      */
-    public reportPlaybackProgress(options: any): Promise<any> {
-        snbn("options", options);
+    public async reportPlaybackProgress(
+        options: PlaybackProgressInfo
+    ): Promise<void> {
+        assertNotNullish("options", options);
 
         const newPositionTicks = options.PositionTicks;
 
@@ -2927,7 +3174,7 @@ export class ApiClient {
         this.lastPlaybackProgressReportTicks = newPositionTicks;
         const url = this.getUrl("Sessions/Playing/Progress");
 
-        return this.ajax({
+        await this.fetch({
             type: "POST",
             data: JSON.stringify(options),
             contentType: "application/json",
@@ -2935,12 +3182,12 @@ export class ApiClient {
         });
     }
 
-    public reportOfflineActions(actions: object): Promise<any> {
-        snbn("actions", actions);
+    public reportOfflineActions(actions: any): Promise<unknown> {
+        assertNotNullish("actions", actions);
 
         const url = this.getUrl("Sync/OfflineActions");
 
-        return this.ajax({
+        return this.fetch({
             type: "POST",
             data: JSON.stringify(actions),
             contentType: "application/json",
@@ -2948,12 +3195,12 @@ export class ApiClient {
         });
     }
 
-    public syncData(data: object): Promise<any> {
-        snbn("data", data);
+    public syncData(data: any): Promise<SyncDataResult> {
+        assertNotNullish("data", data);
 
         const url = this.getUrl("Sync/Data");
 
-        return this.ajax({
+        return this.fetch({
             type: "POST",
             data: JSON.stringify(data),
             contentType: "application/json",
@@ -2962,8 +3209,8 @@ export class ApiClient {
         });
     }
 
-    public getReadySyncItems(deviceId: string): Promise<any> {
-        snbn("deviceId", deviceId);
+    public getReadySyncItems(deviceId: string): Promise<JobItem[]> {
+        assertNotNullish("deviceId", deviceId);
 
         const url = this.getUrl("Sync/Items/Ready", {
             TargetId: deviceId
@@ -2972,25 +3219,30 @@ export class ApiClient {
         return this.getJSON(url);
     }
 
-    public reportSyncJobItemTransferred(syncJobItemId: string): Promise<any> {
-        snbn("syncJobItemId", syncJobItemId);
+    public reportSyncJobItemTransferred(
+        syncJobItemId: string
+    ): Promise<unknown> {
+        assertNotNullish("syncJobItemId", syncJobItemId);
 
         const url = this.getUrl(`Sync/JobItems/${syncJobItemId}/Transferred`);
 
-        return this.ajax({
+        return this.fetch({
             type: "POST",
             url
         });
     }
 
-    public cancelSyncItems(itemIds: string[], targetId?: string): Promise<any> {
-        snbn("itemIds", itemIds);
+    public cancelSyncItems(
+        itemIds: string[],
+        targetId?: string
+    ): Promise<unknown> {
+        assertNotNullish("itemIds", itemIds);
 
         const url = this.getUrl(`Sync/${targetId || this.deviceId()}/Items`, {
             ItemIds: itemIds.join(",")
         });
 
-        return this.ajax({
+        return this.fetch({
             type: "DELETE",
             url
         });
@@ -2999,16 +3251,18 @@ export class ApiClient {
     /**
      * Reports a user has stopped playing an item
      */
-    public reportPlaybackStopped(options: object): Promise<any> {
-        snbn("options", options);
+    public async reportPlaybackStopped(
+        options: PlaybackStopInfo
+    ): Promise<void> {
+        assertNotNullish("options", options);
 
         this.lastPlaybackProgressReport = 0;
         this.lastPlaybackProgressReportTicks = null;
-        redetectBitrate(this);
+        this.redetectBitrate();
 
         const url = this.getUrl("Sessions/Playing/Stopped");
 
-        return this.ajax({
+        await this.fetch({
             type: "POST",
             data: JSON.stringify(options),
             contentType: "application/json",
@@ -3016,98 +3270,82 @@ export class ApiClient {
         });
     }
 
-    public sendPlayCommand(sessionId: string, options: Record<string, string>): Promise<any> {
-        if (!sessionId) {
-            throw new Error("null sessionId");
-        }
-
-        if (!options) {
-            throw new Error("null options");
-        }
+    public async sendPlayCommand(
+        sessionId: string,
+        options: PlaystateRequest
+    ): Promise<void> {
+        assertNotNullish("sessionId", sessionId);
+        assertNotNullish("options", options);
 
         const url = this.getUrl(`Sessions/${sessionId}/Playing`, options);
 
-        return this.ajax({
+        await this.fetch({
             type: "POST",
             url
         });
     }
 
-    public sendCommand(sessionId: string, command: any): Promise<any> {
-        if (!sessionId) {
-            throw new Error("null sessionId");
-        }
-
-        if (!command) {
-            throw new Error("null command");
-        }
+    public async sendCommand(
+        sessionId: string,
+        command: GeneralCommand
+    ): Promise<void> {
+        assertNotNullish("sessionId", sessionId);
+        assertNotNullish("command", command);
 
         const url = this.getUrl(`Sessions/${sessionId}/Command`);
 
-        const ajaxOptions: Record<string, string> = {
+        const ajaxOptions: RequestOptions = {
             type: "POST",
-            url
+            url,
+            data: JSON.stringify(command),
+            contentType: "application/json"
         };
 
-        ajaxOptions.data = JSON.stringify(command);
-        ajaxOptions.contentType = "application/json";
-
-        return this.ajax(ajaxOptions);
+        await this.fetch(ajaxOptions);
     }
 
-    public sendMessageCommand(
+    public async sendMessageCommand(
         sessionId: string,
-        options: Record<string, string>
-    ): Promise<any> {
-        if (!sessionId) {
-            throw new Error("null sessionId");
-        }
-
-        if (!options) {
-            throw new Error("null options");
-        }
+        options: SendMessageCommand
+    ): Promise<void> {
+        assertNotNullish("sessionId", sessionId);
+        assertNotNullish("options", options);
 
         const url = this.getUrl(`Sessions/${sessionId}/Message`);
 
-        const ajaxOptions: Record<string, string> = {
+        const ajaxOptions: RequestOptions = {
             type: "POST",
-            url
+            url,
+            data: JSON.stringify(options),
+            contentType: "application/json"
         };
 
-        ajaxOptions.data = JSON.stringify(options);
-        ajaxOptions.contentType = "application/json";
-
-        return this.ajax(ajaxOptions);
+        await this.fetch(ajaxOptions);
     }
 
-    public sendPlayStateCommand(
+    public async sendPlayStateCommand(
         sessionId: string,
         command: string,
-        options?: Record<string, string>
-    ): Promise<any> {
-        if (!sessionId) {
-            throw new Error("null sessionId");
-        }
-
-        if (!command) {
-            throw new Error("null command");
-        }
+        options: PlaystateRequest = {}
+    ): Promise<void> {
+        assertNotNullish("sessionId", sessionId);
+        assertNotNullish("command", command);
 
         const url = this.getUrl(
             `Sessions/${sessionId}/Playing/${command}`,
-            options || {}
+            options
         );
 
-        return this.ajax({
+        await this.fetch({
             type: "POST",
             url
         });
     }
 
-    public createPackageReview(review: any): Promise<any> {
+    public createPackageReview(review: any): Promise<unknown> {
         const url = this.getUrl(`Packages/Reviews/${review.id}`, review);
 
-        return this.ajax({
+        return this.fetch({
             type: "POST",
             url
         });
@@ -3118,12 +3356,12 @@ export class ApiClient {
         minRating: number,
         maxRating: number,
         limit: number
-    ): Promise<any> {
+    ): Promise<unknown> {
         if (!packageId) {
             throw new Error("null packageId");
         }
 
-        const options: any = {};
+        const options: UrlOptions = {};
 
         if (minRating) {
             options.MinRating = minRating;
@@ -3140,26 +3378,24 @@ export class ApiClient {
         return this.getJSON(url);
     }
 
-    public getSavedEndpointInfo(): any {
+    public getSavedEndpointInfo(): Optional<EndPointInfo> {
         return this._endPointInfo;
     }
 
-    public getEndpointInfo(): Promise<any> {
+    public async getEndpointInfo(): Promise<EndPointInfo> {
         const savedValue = this._endPointInfo;
         if (savedValue) {
             return Promise.resolve(savedValue);
         }
 
-        const instance = this;
-        return this.getJSON(this.getUrl("System/Endpoint")).then(
-            endPointInfo => {
-                this.setSavedEndpointInfo(endPointInfo);
-                return endPointInfo;
-            }
-        );
+        const endPointInfo = await this.getJSON(this.getUrl("System/Endpoint"));
+        this.setSavedEndpointInfo(endPointInfo);
+        return endPointInfo;
     }
 
-    public getLatestItems(options: UrlOptions = {}): Promise<any> {
+    public getLatestItems(
+        options: GetLatestMedia = {}
+    ): Promise<BaseItemDto[]> {
         return this.getJSON(
             this.getUrl(
                 `Users/${this.getCurrentUserId()}/Items/Latest`,
@@ -3168,33 +3404,61 @@ export class ApiClient {
         );
     }
 
-    public getFilters(options?: UrlOptions): Promise<any> {
+    public getFilters(options?: GetQueryFilters): Promise<QueryFilters> {
         return this.getJSON(this.getUrl("Items/Filters2", options));
     }
 
-    public setSystemInfo(info: any) {
+    public setSystemInfo(info: PublicSystemInfo) {
         this._serverVersion = info.Version;
     }
 
-    public serverVersion(): string | undefined {
+    public serverVersion(): Optional<string> {
         return this._serverVersion;
     }
 
     public isMinServerVersion(version: string): boolean {
         const serverVersion = this.serverVersion();
 
-        if (serverVersion) {
-            return compareVersions(serverVersion, version) >= 0;
-        }
-
-        return false;
+        return !!serverVersion && compareVersions(serverVersion, version) >= 0;
     }
 
-    public handleMessageReceived(msg: MessageEvent) {
+    public handleMessageReceived(msg: WebSocketMessage) {
         this.onMessageReceivedInternal(msg);
     }
 
-    private detectBitrateWithEndpointInfo(endpointInfo: any): Promise<number> {
+    protected normalizeImageOptions(options: ImageRequest) {
+        let ratio = this._devicePixelRatio || 1;
+
+        if (ratio) {
+            if (options.MinScale) {
+                ratio = Math.max(options.MinScale as number, ratio);
+            }
+
+            if (options.Width) {
+                options.Width = Math.round((options.Width as number) * ratio);
+            }
+            if (options.Height) {
+                options.Height = Math.round((options.Height as number) * ratio);
+            }
+            if (options.MaxWidth) {
+                options.MaxWidth = Math.round(
+                    (options.MaxWidth as number) * ratio
+                );
+            }
+            if (options.MaxHeight) {
+                options.MaxHeight = Math.round(
+                    (options.MaxHeight as number) * ratio
+                );
+            }
+        }
+
+        options.Quality =
+            options.Quality || this.getDefaultImageQuality(options.Type);
+    }
+
+    private detectBitrateWithEndpointInfo(
+        endpointInfo: Partial<EndPointInfo>
+    ): Promise<number> {
         if (endpointInfo.IsInNetwork) {
             const result = 140000000;
             this.lastDetectedBitrate = result;
@@ -3236,7 +3500,7 @@ export class ApiClient {
         return this.normalizeReturnBitrate(bitrate);
     }
 
-    private setSavedEndpointInfo(info: any) {
+    private setSavedEndpointInfo(info: EndPointInfo | null) {
         this._endPointInfo = info;
     }
 
@@ -3252,8 +3516,10 @@ export class ApiClient {
             this.getUrl("system/info/public", null, url),
             {
                 method: "GET",
-                // Fixme: This is not correct
-                accept: "application/json"
+                // Fixme: This is not correct,
+                headers: {
+                    accept: "application/json"
+                }
 
                 // Commenting this out since the fetch api doesn't have a timeout option yet
                 // timeout: timeout
@@ -3331,25 +3597,24 @@ export class ApiClient {
         });
     }
 
-    private tryReconnect(retryCount?: number) {
-        const rc = retryCount || 0;
-
-        if (rc >= 20) {
+    private async tryReconnect(retryCount: number = 0) {
+        if (retryCount >= 20) {
             return Promise.reject();
         }
 
-        return this.tryReconnectInternal().catch(err => {
+        try {
+            return this.tryReconnectInternal();
+        } catch (err) {
             console.log(`error in tryReconnectInternal: ${err || ""}`);
-
             return new Promise((resolve, reject) => {
                 setTimeout(() => {
-                    this.tryReconnect(rc + 1).then(resolve, reject);
+                    this.tryReconnect(retryCount + 1).then(resolve, reject);
                 }, 500);
             });
-        });
+        }
     }
 
-    private getCachedUser(userId: string) {
+    private getCachedUser(userId: string): UserDto | null {
         const serverId = this.serverId();
         if (!serverId) {
             return null;
@@ -3365,15 +3630,13 @@ export class ApiClient {
     }
 
     private onWebSocketMessageListener() {
-        return (msg: MessageEvent) => {
-            msg = JSON.parse(msg.data);
-            this.onMessageReceivedInternal(msg);
+        return (e: MessageEvent) => {
+            const message = JSON.parse(e.data) as WebSocketMessage;
+            this.onMessageReceivedInternal(message);
         };
     }
 
-    private messageIdsReceived: Record<number, boolean> = {};
-
-    private onMessageReceivedInternal(msg: MessageEvent) {
+    private onMessageReceivedInternal(msg: WebSocketMessage) {
         const messageId = msg.MessageId;
         if (messageId) {
             // message was already received via another protocol
@@ -3427,13 +3690,15 @@ export class ApiClient {
         };
     }
 
-    private normalizeReturnBitrate(bitrate?: number) {
+    private normalizeReturnBitrate(bitrate?: number): number {
         if (!bitrate) {
             if (this.lastDetectedBitrate) {
                 return this.lastDetectedBitrate;
             }
 
-            return Promise.reject();
+            throw new Error(
+                "bitrate must be set if no previous bitrate has been detected"
+            );
         }
 
         let result = Math.round(bitrate * 0.7);
@@ -3452,7 +3717,7 @@ export class ApiClient {
         return result;
     }
 
-    private getRemoteImagePrefix(options: any) {
+    private getRemoteImagePrefix(options: HasMediaId) {
         let urlPrefix;
 
         if (options.artist) {
@@ -3478,34 +3743,29 @@ export class ApiClient {
         return urlPrefix;
     }
 
-    private normalizeImageOptions(options: UrlOptions) {
-        let ratio = this._devicePixelRatio || 1;
+    private redetectBitrate() {
+        this.stopBitrateDetection();
 
-        if (ratio) {
-            if (options.minScale) {
-                ratio = Math.max(options.minScale as number, ratio);
-            }
-
-            if (options.width) {
-                options.width = Math.round(options.width as number * ratio);
-            }
-            if (options.height) {
-                options.height = Math.round(options.height as number * ratio);
-            }
-            if (options.maxWidth) {
-                options.maxWidth = Math.round(options.maxWidth as number * ratio);
-            }
-            if (options.maxHeight) {
-                options.maxHeight = Math.round(options.maxHeight as number * ratio);
-            }
+        if (
+            this.accessToken() &&
+            this.enableAutomaticBitrateDetection !== false
+        ) {
+            this.detectTimeout = setTimeout(
+                () => this.redetectBitrateInternal(),
+                6000
+            );
         }
+    }
 
-        options.quality =
-            options.quality || this.getDefaultImageQuality(options.type as string | undefined);
+    private redetectBitrateInternal() {
+        if (this.accessToken()) {
+            this.detectBitrate();
+        }
+    }
 
-        // Fixme: This called an "overridable" method on the client before
-        if (this.normalizeImageOptions) {
-            this.normalizeImageOptions(options);
+    private stopBitrateDetection() {
+        if (this.detectTimeout) {
+            clearTimeout(this.detectTimeout);
         }
     }
 }

@@ -6,21 +6,13 @@ export function nf(value: any, msg: string): void | never {
         throw new Error(msg);
     }
 }
-
-type NeverNull<T> = T extends null
-    ? never
-    : T extends undefined
-        ? never
-        : undefined;
-
 /**
  * Helper for "variable x should not be null or undefined"
  */
-export function snbn<T>(name: string, value: T): NeverNull<T> {
+export function assertNotNullish<T>(name: string, value: T): asserts value {
     if (value === null || value === undefined) {
         throw new Error(`${name} should not be null or undefined`);
     }
-    return undefined as NeverNull<T>;
 }
 
 /**

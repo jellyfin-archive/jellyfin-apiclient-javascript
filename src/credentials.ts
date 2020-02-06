@@ -1,47 +1,35 @@
+import { AppStorage } from "./appStorage";
 import events from "./events";
+import { ServerInfo } from "./types/ServerInfo";
+import { Optional } from "./types/types";
 
-function ensure(instance, data) {
-    if (!instance._credentials) {
-        const json = instance.appStorage.getItem(instance.key) || "{}";
-
-        console.log(`credentials initialized with: ${json}`);
-        instance._credentials = JSON.parse(json);
-        instance._credentials.Servers = instance._credentials.Servers || [];
-    }
-}
-
-function set(instance, data) {
-    if (data) {
-        instance._credentials = data;
-        instance.appStorage.setItem(instance.key, JSON.stringify(data));
-    } else {
-        instance.clear();
-    }
-
-    events.trigger(instance, "credentialsupdated");
+export interface ServerCredentials {
+    Servers: ServerInfo[];
 }
 
 export default class Credentials {
-    constructor(appStorage, key) {
-        this.key = key || "jellyfin_credentials";
-        this.appStorage = appStorage;
-    }
+    private _credentials: ServerCredentials | null = null;
+
+    constructor(
+        public appStorage: AppStorage,
+        public key: string = "jellyfin_credentials"
+    ) {}
 
     public clear() {
         this._credentials = null;
         this.appStorage.removeItem(this.key);
     }
 
-    public credentials(data) {
+    public credentials(data?: Optional<ServerCredentials>) {
         if (data) {
-            set(this, data);
+            this.set(data);
         }
 
-        ensure(this);
-        return this._credentials;
+        this.ensure();
+        return this._credentials!;
     }
 
-    public addOrUpdateServer(list, server) {
+    public addOrUpdateServer(list: ServerInfo[], server: ServerInfo) {
         if (!server.Id) {
             throw new Error("Server.Id cannot be null or empty");
         }
@@ -88,5 +76,26 @@ export default class Credentials {
             list.push(server);
             return server;
         }
+    }
+
+    private ensure() {
+        if (!this._credentials) {
+            const json = this.appStorage.getItem(this.key) || "{}";
+
+            console.log(`credentials initialized with: ${json}`);
+            this._credentials = JSON.parse(json) as ServerCredentials;
+            this._credentials.Servers = this._credentials.Servers || [];
+        }
+    }
+
+    private set(data?: Optional<ServerCredentials>) {
+        if (data) {
+            this._credentials = data;
+            this.appStorage.setItem(this.key, JSON.stringify(data));
+        } else {
+            this.clear();
+        }
+
+        events.trigger(this, "credentialsupdated");
     }
 }

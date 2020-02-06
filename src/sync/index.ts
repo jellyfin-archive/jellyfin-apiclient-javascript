@@ -1,11 +1,11 @@
-import FileRepository from "./sync/filerepository";
-import ItemRepository from "./sync/itemrepository";
-import LocalSync from "./sync/localsync";
-import MediaSync from "./sync/mediasync";
-import MultiServerSync from "./sync/multiserversync";
-import ServerSync from "./sync/serversync";
-import TransferManager from "./sync/transfermanager";
-import UserActionRepository from "./sync/useractionrepository";
+import FileRepository from "./filerepository";
+import ItemRepository from "./itemrepository";
+import LocalSync from "./localsync";
+import MediaSync from "./mediasync";
+import MultiServerSync from "./multiserversync";
+import ServerSync from "./serversync";
+import TransferManager from "./transfermanager";
+import UserActionRepository from "./useractionrepository";
 
 export default {
     FileRepository,

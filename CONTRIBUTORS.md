@@ -4,6 +4,7 @@
  - [cvium](https://github.com/cvium)
  - [Oddstr13](https://github.com/oddstr13)
  - [Cromefire_](https://github.com/cromefire)
+ - [Phault](https://github.com/Phault)
 
 # Emby Contributors
 
