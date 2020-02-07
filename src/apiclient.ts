@@ -1,6 +1,5 @@
 import { AppStorage } from "./appStorage";
 import events from "./events";
-import { SyncDataResult } from "./sync/mediasync";
 import {
     AllThemeMediaResult,
     AuthenticationResult,
@@ -56,7 +55,6 @@ import {
     ItemCounts,
     ItemFilter,
     ItemSortBy,
-    JobItem,
     JsonRequestOptions,
     LibraryOptions,
     LiveTvInfo,
@@ -281,6 +279,18 @@ export class ApiClient {
         return this._appName;
     }
 
+    public appVersion() {
+        return this._appVersion;
+    }
+
+    public deviceName() {
+        return this._deviceName;
+    }
+
+    public deviceId() {
+        return this._deviceId;
+    }
+
     public setRequestHeaders(headers: Record<string, string>) {
         const appName = this._appName;
         const currentServerInfo = this.serverInfo;
@@ -313,18 +323,6 @@ export class ApiClient {
             // headers.Authorization = auth;
             headers["X-Emby-Authorization"] = auth;
         }
-    }
-
-    public appVersion() {
-        return this._appVersion;
-    }
-
-    public deviceName() {
-        return this.deviceName;
-    }
-
-    public deviceId() {
-        return this._deviceId;
     }
 
     /**
@@ -1308,22 +1306,6 @@ export class ApiClient {
         return info;
     }
 
-    public getSyncStatus(itemId: string): Promise<any> {
-        assertNotNullish("itemId", itemId);
-
-        const url = this.getUrl(`Sync/${itemId}/Status`);
-
-        return this.fetch({
-            url,
-            type: "POST",
-            dataType: "json",
-            contentType: "application/json",
-            data: JSON.stringify({
-                TargetId: this.deviceId()
-            })
-        });
-    }
-
     /**
      * Gets the current server status
      */
@@ -1447,22 +1429,6 @@ export class ApiClient {
             url: this.getUrl(`Items/${itemId}/PlaybackInfo`, options),
             type: "POST",
             data: options,
-            contentType: "application/json",
-            dataType: "json"
-        });
-    }
-
-    public getLiveStreamMediaInfo(liveStreamId: string): Promise<any> {
-        assertNotNullish("liveStreamId", liveStreamId);
-
-        const postData = {
-            LiveStreamId: liveStreamId
-        };
-
-        return this.fetch({
-            url: this.getUrl("LiveStreams/MediaInfo"),
-            type: "POST",
-            data: JSON.stringify(postData),
             contentType: "application/json",
             dataType: "json"
         });
@@ -2449,7 +2415,7 @@ export class ApiClient {
     }
 
     public getThumbImageUrl(
-        item: any,
+        item: BaseItemDto,
         options?: Partial<ImageRequest>
     ): string | null {
         assertNotNullish("item", item);
@@ -2460,10 +2426,11 @@ export class ApiClient {
         };
 
         if (item.ImageTags && item.ImageTags.Thumb) {
+            assertNotNullish("item.Id", item.Id);
             fullOptions.Tag = item.ImageTags.Thumb;
             return this.getImageUrl(item.Id, fullOptions);
         } else if (item.ParentThumbItemId) {
-            fullOptions.Tag = item.ImageTags.ParentThumbImageTag;
+            fullOptions.Tag = item.ParentThumbImageTag;
             return this.getImageUrl(item.ParentThumbItemId, fullOptions);
         }
 
@@ -3178,72 +3145,6 @@ export class ApiClient {
             type: "POST",
             data: JSON.stringify(options),
             contentType: "application/json",
-            url
-        });
-    }
-
-    public reportOfflineActions(actions: any): Promise<unknown> {
-        assertNotNullish("actions", actions);
-
-        const url = this.getUrl("Sync/OfflineActions");
-
-        return this.fetch({
-            type: "POST",
-            data: JSON.stringify(actions),
-            contentType: "application/json",
-            url
-        });
-    }
-
-    public syncData(data: any): Promise<SyncDataResult> {
-        assertNotNullish("data", data);
-
-        const url = this.getUrl("Sync/Data");
-
-        return this.fetch({
-            type: "POST",
-            data: JSON.stringify(data),
-            contentType: "application/json",
-            url,
-            dataType: "json"
-        });
-    }
-
-    public getReadySyncItems(deviceId: string): Promise<JobItem[]> {
-        assertNotNullish("deviceId", deviceId);
-
-        const url = this.getUrl("Sync/Items/Ready", {
-            TargetId: deviceId
-        });
-
-        return this.getJSON(url);
-    }
-
-    public reportSyncJobItemTransferred(
-        syncJobItemId: string
-    ): Promise<unknown> {
-        assertNotNullish("syncJobItemId", syncJobItemId);
-
-        const url = this.getUrl(`Sync/JobItems/${syncJobItemId}/Transferred`);
-
-        return this.fetch({
-            type: "POST",
-            url
-        });
-    }
-
-    public cancelSyncItems(
-        itemIds: string[],
-        targetId?: string
-    ): Promise<unknown> {
-        assertNotNullish("itemIds", itemIds);
-
-        const url = this.getUrl(`Sync/${targetId || this.deviceId()}/Items`, {
-            ItemIds: itemIds.join(",")
-        });
-
-        return this.fetch({
-            type: "DELETE",
             url
         });
     }

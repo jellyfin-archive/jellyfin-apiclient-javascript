@@ -17,6 +17,7 @@
         /* Module Resolution Options */
         "esModuleInterop": true,
         /* Advanced Options */
-        "forceConsistentCasingInFileNames": true
+        "forceConsistentCasingInFileNames": true,
+        "moduleResolution": "node"
     }
 }
