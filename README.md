@@ -5,12 +5,11 @@
 Jellyfin ApiClient.js is a JavaScript library for interacting with Jellyfin's REST API.
 </p>
 
-
 ## Notes
 
 - This library depends on the native fetch and Promise APIs. These will be expected to be polyfilled if used in a browser that doesn't support them.
 
-## Building the ApiClient
+## Building the API Client
 
 ```sh
 yarn install
@@ -20,6 +19,6 @@ yarn build
 This will build the library in production mode. To build the library in development mode instead, run `yarn dev`.
 
 
-## Building documentation
+## Building Documentation
 
 This library is documented using [JSDoc](https://jsdoc.app/) style comments. Documentation can be generated in HTML format by running `yarn docs`. The resulting documentation will be saved in the `docs/` directory.
