@@ -1,24 +1,40 @@
 const path = require('path');
 
+var babelLoader = {
+    loader: 'babel-loader',
+    options: {
+        cacheDirectory: true,
+    }
+};
+
 module.exports = {
     entry: {
         'jellyfin-apiclient': 'index.js',
     },
+    devtool: "source-map",
     module: {
         rules: [
             {
-                test: /\.js$/,
-                exclude: /(dist|node_modules)/,
-                use: {
-                    loader: 'babel-loader',
-                    options: {
-                        presets: ['@babel/preset-env']
+                test: /\.ts(x?)$/,
+                exclude: /node_modules/,
+                use: [
+                    babelLoader,
+                    {
+                        loader: 'ts-loader'
                     }
-                }
+                ]
+            },
+            {
+                test: /\.js$/,
+                exclude: /node_modules/,
+                use: [
+                    babelLoader
+                ]
             }
         ],
     },
     resolve: {
+        extensions: ['.ts', '.js'],
         modules: [
             path.resolve(__dirname, 'node_modules'),
             path.resolve(__dirname, 'src')
