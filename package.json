@@ -18,7 +18,7 @@
     "webpack-cli": "^3.2.1"
   },
   "scripts": {
-    "prepare": "webpack",
+    "prepare": "webpack --mode production",
     "dev": "webpack --mode development",
     "build": "webpack --mode production",
     "lint": "eslint \"src\"",
