@@ -1,4 +1,4 @@
-﻿import events from 'events.js';
+﻿import events from './events';
 
 const defaultTimeout = 20000;
 

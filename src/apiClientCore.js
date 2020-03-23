@@ -1,4 +1,4 @@
-﻿import ApiClient from 'apiclient';
+﻿import ApiClient from './apiClient';
 
 const localPrefix = 'local:';
 const localViewPrefix = 'localview:';
@@ -105,7 +105,7 @@ function getLocalView(instance, serverId, userId) {
  * Creates a new api client instance
  * @param {String} serverAddress
  * @param {String} clientName s
- * @param {String} applicationVersion 
+ * @param {String} applicationVersion
  */
 class ApiClientEx extends ApiClient {
     constructor(
