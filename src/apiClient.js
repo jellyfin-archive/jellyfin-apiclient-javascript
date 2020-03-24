@@ -126,11 +126,11 @@ class ApiClient {
             throw new Error("Must supply a serverAddress");
         }
 
-        console.log(`ApiClient serverAddress: ${serverAddress}`);
-        console.log(`ApiClient appName: ${appName}`);
-        console.log(`ApiClient appVersion: ${appVersion}`);
-        console.log(`ApiClient deviceName: ${deviceName}`);
-        console.log(`ApiClient deviceId: ${deviceId}`);
+        console.debug(`ApiClient serverAddress: ${serverAddress}`);
+        console.debug(`ApiClient appName: ${appName}`);
+        console.debug(`ApiClient appVersion: ${appVersion}`);
+        console.debug(`ApiClient deviceName: ${deviceName}`);
+        console.debug(`ApiClient deviceId: ${deviceId}`);
 
         this._serverInfo = {};
         this._serverAddress = serverAddress;
