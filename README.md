@@ -1,4 +1,4 @@
-<h1 align="center">Jellyfin API client for JavaScript</h1>
+<h1 align="center">Jellyfin API Client for JavaScript</h1>
 <h3 align="center">Part of the <a href="https://jellyfin.media">Jellyfin Project</a></h3>
 
 ---
@@ -8,7 +8,7 @@
 <br/>
 <br/>
 <a href="https://github.com/jellyfin/jellyfin-apiclient-javascript">
-<img alt="GPL 2.0 License" src="https://img.shields.io/github/license/jellyfin/jellyfin-apiclient-javascript.svg"/>
+<img alt="MIT License" src="https://img.shields.io/github/license/jellyfin/jellyfin-apiclient-javascript.svg"/>
 </a>
 <a href="https://opencollective.com/jellyfin">
 <img alt="Donate" src="https://img.shields.io/opencollective/all/jellyfin.svg?label=backers"/>
@@ -27,7 +27,7 @@
 </a>
 </p>
 
-Jellyfin API client for JavaScript is a library meant to help clients written in JavaScript or TypeScript to interact with Jellyfin's REST API.
+This library is meant to help clients written in JavaScript or TypeScript interact with Jellyfin's REST API.
 
 ## Compatibility
 
@@ -54,13 +54,13 @@ This library depends on the Fetch and Promise APIs. These will be expected to be
     yarn install
     ```
 
-3. Build the library for production
+3. Build the library for production.
 
     ```sh
     yarn build
     ```
 
-4. Build the library for development
+4. Build the library for development.
 
     ```sh
     yarn dev
