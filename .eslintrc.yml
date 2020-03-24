@@ -2,12 +2,22 @@ env:
   es6: true
   browser: true
 
+parser: '@typescript-eslint/parser'
+
 extends:
   - "eslint:recommended"
+  - 'plugin:@typescript-eslint/eslint-recommended'
+  - 'plugin:@typescript-eslint/recommended'
+  - 'plugin:@typescript-eslint/recommended-requiring-type-checking'
+
+plugins:
+  - '@typescript-eslint'
 
 parserOptions:
   ecmaVersion: 6
   sourceType: module
+  tsconfigRootDir: '.'
+  project: ['./tsconfig.json']
 
 overrides:
   - files:
