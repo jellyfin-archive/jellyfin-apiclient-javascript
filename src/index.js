@@ -1,7 +1,7 @@
 import ApiClient from './apiClient';
 import ApiClientCore from './apiClientCore';
 import AppStorage from './appStorage';
-import ConnectionManager from './appStorage';
+import ConnectionManager from './connectionManager';
 import Credentials from './credentials';
 import Events from './events';
 
