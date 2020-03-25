@@ -9,25 +9,31 @@ extends:
   - "plugin:promise/recommended"
   - "plugin:import/errors"
   - "plugin:import/warnings"
-  - "plugin:import/typescript"
-  - 'plugin:@typescript-eslint/eslint-recommended'
-  - 'plugin:@typescript-eslint/recommended'
-  - 'plugin:@typescript-eslint/recommended-requiring-type-checking'
 
 plugins:
   - "promise"
   - "import"
-  - '@typescript-eslint'
 
 parserOptions:
   ecmaVersion: 6
   sourceType: module
-  tsconfigRootDir: '.'
-  project: ['./tsconfig.json']
 
 overrides:
   - files:
-      "**/*.test.js"
+      - "src/**/*.js"
+      - "src/**/*.ts"
+    extends:
+      - "plugin:import/typescript"
+      - 'plugin:@typescript-eslint/eslint-recommended'
+      - 'plugin:@typescript-eslint/recommended'
+      - 'plugin:@typescript-eslint/recommended-requiring-type-checking'
+    parserOptions:
+      tsconfigRootDir: '.'
+      project: ['./tsconfig.json']
+    plugins:
+      - '@typescript-eslint'
+  - files:
+      "tests/**/*.js"
     env:
       jest: true
     extends:
