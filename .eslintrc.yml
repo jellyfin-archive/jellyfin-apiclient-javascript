@@ -2,8 +2,17 @@ env:
   es6: true
   browser: true
 
+parser: '@typescript-eslint/parser'
+
 extends:
   - "eslint:recommended"
+  - "plugin:promise/recommended"
+  - "plugin:import/errors"
+  - "plugin:import/warnings"
+
+plugins:
+  - "promise"
+  - "import"
 
 parserOptions:
   ecmaVersion: 6
@@ -11,7 +20,20 @@ parserOptions:
 
 overrides:
   - files:
-      "**/*.test.js"
+      - "src/**/*.js"
+      - "src/**/*.ts"
+    extends:
+      - "plugin:import/typescript"
+      - 'plugin:@typescript-eslint/eslint-recommended'
+      - 'plugin:@typescript-eslint/recommended'
+      - 'plugin:@typescript-eslint/recommended-requiring-type-checking'
+    parserOptions:
+      tsconfigRootDir: '.'
+      project: ['./tsconfig.json']
+    plugins:
+      - '@typescript-eslint'
+  - files:
+      "tests/**/*.js"
     env:
       jest: true
     extends:
