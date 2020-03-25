@@ -1,15 +1,15 @@
 import events from '../src/events';
 
-test('contains an on property', () => {
-    expect(events).toHaveProperty("on");
+describe('Events', () => {
+    it('contains an on property', () => {
+        expect(events).toHaveProperty('on');
+    });
+
+    it('contains an off property', () => {
+        expect(events).toHaveProperty('off');
+    });
+
+    it('contains a trigger property', () => {
+        expect(events).toHaveProperty('trigger');
+    });
 });
-
-test('contains an off property', () => {
-    expect(events).toHaveProperty("off");
-});
-
-test('contains a trigger property', () => {
-    expect(events).toHaveProperty("trigger");
-});
-
-
