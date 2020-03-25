@@ -1,11 +1,9 @@
-import ApiClient from 'apiclient.js';
-import ApiClientCore from 'apiclientcore.js';
-import AppStorage from 'appStorage.js';
-import ConnectionManager from 'connectionmanager.js';
-import Credentials from 'credentials.js';
-import Events from 'events.js';
-import LocalAssetManager from 'localassetmanager.js';
-import Sync from 'sync/index.js';
+import ApiClient from './apiClient';
+import ApiClientCore from './apiClientCore';
+import AppStorage from './appStorage';
+import ConnectionManager from './connectionManager';
+import Credentials from './credentials';
+import Events from './events';
 
 export default {
     ApiClient,
@@ -13,7 +11,5 @@ export default {
     AppStorage,
     ConnectionManager,
     Credentials,
-    Events,
-    LocalAssetManager,
-    Sync
+    Events
 }

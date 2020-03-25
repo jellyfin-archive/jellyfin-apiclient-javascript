@@ -1,4 +1,4 @@
-﻿import events from 'events.js';
+﻿import events from './events';
 
 function redetectBitrate(instance) {
     stopBitrateDetection(instance);
@@ -112,7 +112,7 @@ function getFetchPromise(request) {
  * Creates a new api client instance
  * @param {String} serverAddress
  * @param {String} appName
- * @param {String} appVersion 
+ * @param {String} appVersion
  */
 class ApiClient {
     constructor(
@@ -300,7 +300,7 @@ class ApiClient {
                 console.log(`Request timed out to ${request.url}`);
             }
 
-            // http://api.jquery.com/jQuery.ajax/		     
+            // http://api.jquery.com/jQuery.ajax/
             if ((!error || !error.status) && enableReconnection) {
                 console.log("Attempting reconnection");
 
