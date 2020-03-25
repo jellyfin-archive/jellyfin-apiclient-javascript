@@ -109,14 +109,14 @@ jobs:
       displayName: 'Run Jest'
 
     - task: PublishTestResults@2
-      displayName: 'Publish test results'
+      displayName: 'Publish Test Results'
       condition: succeededOrFailed()
       inputs:
         testRunner: JUnit
         testResultsFiles: 'junit.xml'
 
     - task: PublishCodeCoverageResults@1
-      displayName: 'Publish coverage results'
+      displayName: 'Publish Coverage Results'
       inputs:
         codeCoverageTool: Cobertura
         summaryFileLocation: '$(System.DefaultWorkingDirectory)/coverage/cobertura-coverage.xml'
