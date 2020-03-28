@@ -1,4 +1,5 @@
 ﻿import events from './events';
+import appStorage from './appStorage';
 import { fetch, fetchWithTimeout, getFetchPromise, getTryConnectPromise, onFetchFail, paramsToString, tryReconnect } from './utils/fetch';
 import { detectBitrateWithEndpointInfo, normalizeReturnBitrate, redetectBitrate, stopBitrateDetection } from './utils/bitrate';
 import { onMessageReceivedInternal, onWebSocketError, onWebSocketMessage, onWebSocketOpen, setSocketOnClose } from './utils/websocket';
@@ -270,7 +271,7 @@ class ApiClient {
         let user;
 
         const serverPromise = this.getUser(userId).then(user => {
-            instance.appStorage.setItem(`user-${user.Id}-${user.ServerId}`, JSON.stringify(user));
+            appStorage.setItem(`user-${user.Id}-${user.ServerId}`, JSON.stringify(user));
 
             instance._currentUser = user;
             return user;
@@ -321,7 +322,7 @@ class ApiClient {
         const done = () => {
             const info = this.serverInfo();
             if (info && info.UserId && info.Id) {
-                this.appStorage.removeItem(`user-${info.UserId}-${info.Id}`);
+                appStorage.removeItem(`user-${info.UserId}-${info.Id}`);
             }
             this.setAuthenticationInfo(null, null);
         };
