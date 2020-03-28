@@ -1,112 +1,9 @@
 ﻿import events from './events';
-
-function redetectBitrate(instance) {
-    stopBitrateDetection(instance);
-
-    if (instance.accessToken() && instance.enableAutomaticBitrateDetection !== false) {
-        setTimeout(redetectBitrateInternal.bind(instance), 6000);
-    }
-}
-
-function redetectBitrateInternal() {
-    if (this.accessToken()) {
-        this.detectBitrate();
-    }
-}
-
-function stopBitrateDetection(instance) {
-    if (instance.detectTimeout) {
-        clearTimeout(instance.detectTimeout);
-    }
-}
-
-function replaceAll(originalString, strReplace, strWith) {
-    const reg = new RegExp(strReplace, 'ig');
-    return originalString.replace(reg, strWith);
-}
-
-function onFetchFail(instance, url, response) {
-
-    events.trigger(instance, 'requestfail', [
-        {
-            url,
-            status: response.status,
-            errorCode: response.headers ? response.headers.get('X-Application-Error-Code') : null
-        }]);
-}
-
-function paramsToString(params) {
-
-    const values = [];
-
-    for (const key in params) {
-
-        const value = params[key];
-
-        if (value !== null && value !== undefined && value !== '') {
-            values.push(`${encodeURIComponent(key)}=${encodeURIComponent(value)}`);
-        }
-    }
-    return values.join('&');
-}
-
-function fetchWithTimeout(url, options, timeoutMs) {
-
-    return new Promise((resolve, reject) => {
-
-        const timeout = setTimeout(reject, timeoutMs);
-
-        options = options || {};
-        options.credentials = 'same-origin';
-
-        fetch(url, options).then(response => {
-            clearTimeout(timeout);
-            resolve(response);
-        }, error => {
-            clearTimeout(timeout);
-            reject(error);
-        });
-    });
-}
-
-function getFetchPromise(request) {
-
-    const headers = request.headers || {};
-
-    if (request.dataType === 'json') {
-        headers.accept = 'application/json';
-    }
-
-    const fetchRequest = {
-        headers,
-        method: request.type,
-        credentials: 'same-origin'
-    };
-
-    let contentType = request.contentType;
-
-    if (request.data) {
-
-        if (typeof request.data === 'string') {
-            fetchRequest.body = request.data;
-        } else {
-            fetchRequest.body = paramsToString(request.data);
-
-            contentType = contentType || 'application/x-www-form-urlencoded; charset=UTF-8';
-        }
-    }
-
-    if (contentType) {
-
-        headers['Content-Type'] = contentType;
-    }
-
-    if (!request.timeout) {
-        return fetch(request.url, fetchRequest);
-    }
-
-    return fetchWithTimeout(request.url, fetchRequest, request.timeout);
-}
+import { fetch, fetchWithTimeout, getFetchPromise, getTryConnectPromise, onFetchFail, paramsToString, tryReconnect } from './utils/fetch';
+import { detectBitrateWithEndpointInfo, normalizeReturnBitrate, redetectBitrate, stopBitrateDetection } from './utils/bitrate';
+import { onMessageReceivedInternal, onWebSocketError, onWebSocketMessage, onWebSocketOpen, setSocketOnClose } from './utils/websocket';
+import { compareVersions, replaceAll } from './utils/strings';
+import { getCachedUser, getRemoteImagePrefix, normalizeImageOptions, setSavedEndpointInfo } from './utils/instance';
 
 /**
  * Creates a new api client instance
@@ -146,7 +43,6 @@ class ApiClient {
     }
 
     setRequestHeaders(headers) {
-
         const currentServerInfo = this.serverInfo();
         const appName = this._appName;
         const accessToken = currentServerInfo.AccessToken;
@@ -174,7 +70,6 @@ class ApiClient {
         }
 
         if (values.length) {
-
             const auth = `MediaBrowser ${values.join(', ')}`;
             //headers.Authorization = auth;
             headers['X-Emby-Authorization'] = auth;
@@ -197,9 +92,7 @@ class ApiClient {
      * Gets the server address.
      */
     serverAddress(val) {
-
         if (val != null) {
-
             if (val.toLowerCase().indexOf('http') !== 0) {
                 throw new Error(`Invalid url: ${val}`);
             }
@@ -219,7 +112,6 @@ class ApiClient {
     }
 
     onNetworkChange() {
-
         this.lastDetectedBitrate = 0;
         this.lastDetectedBitrateTime = 0;
         setSavedEndpointInfo(this, null);
@@ -233,7 +125,6 @@ class ApiClient {
      * @param {Object} params
      */
     getUrl(name, params) {
-
         if (!name) {
             throw new Error("Url name cannot be empty");
         }
@@ -268,11 +159,9 @@ class ApiClient {
         const instance = this;
 
         return getFetchPromise(request).then(response => {
-
             instance.lastFetch = new Date().getTime();
 
             if (response.status < 400) {
-
                 if (request.dataType === 'json' || request.headers.accept === 'application/json') {
                     return response.json();
                 } else if (request.dataType === 'text' || (response.headers.get('Content-Type') || '').toLowerCase().indexOf('text/') === 0) {
@@ -286,7 +175,6 @@ class ApiClient {
             }
 
         }, error => {
-
             if (error) {
                 console.log(`Request failed to ${request.url} ${error.toString()}`);
             } else {
@@ -300,74 +188,22 @@ class ApiClient {
                 const previousServerAddress = instance.serverAddress();
 
                 return tryReconnect(instance).then(() => {
-
                     console.log("Reconnect succeesed");
                     request.url = request.url.replace(previousServerAddress, instance.serverAddress());
 
                     return instance.fetchWithFailover(request, false);
-
                 }, innerError => {
-
                     console.log("Reconnect failed");
                     onFetchFail(instance, request.url, {});
                     throw innerError;
                 });
-
             } else {
-
                 console.log("Reporting request failure");
 
                 onFetchFail(instance, request.url, {});
                 throw error;
             }
         });
-    }
-
-    /**
-     * Wraps around jQuery ajax methods to add additional info to the request.
-     */
-    fetch(request, includeAuthorization) {
-
-        if (!request) {
-            throw new Error("Request cannot be null");
-        }
-
-        request.headers = request.headers || {};
-
-        if (includeAuthorization !== false) {
-
-            this.setRequestHeaders(request.headers);
-        }
-
-        if (this.enableAutomaticNetworking === false || request.type !== "GET") {
-            console.log(`Requesting url without automatic networking: ${request.url}`);
-
-            const instance = this;
-            return getFetchPromise(request).then(response => {
-
-                instance.lastFetch = new Date().getTime();
-
-                if (response.status < 400) {
-
-                    if (request.dataType === 'json' || request.headers.accept === 'application/json') {
-                        return response.json();
-                    } else if (request.dataType === 'text' || (response.headers.get('Content-Type') || '').toLowerCase().indexOf('text/') === 0) {
-                        return response.text();
-                    } else {
-                        return response;
-                    }
-                } else {
-                    onFetchFail(instance, request.url, response);
-                    return Promise.reject(response);
-                }
-
-            }, error => {
-                onFetchFail(instance, request.url, {});
-                throw error;
-            });
-        }
-
-        return this.fetchWithFailover(request, true);
     }
 
     setAuthenticationInfo(accessKey, userId) {
@@ -379,7 +215,6 @@ class ApiClient {
     }
 
     serverInfo(info) {
-
         if (info) {
             this._serverInfo = info;
         }
@@ -391,7 +226,6 @@ class ApiClient {
      * Gets or sets the current user id.
      */
     getCurrentUserId() {
-
         return this._serverInfo.UserId;
     }
 
@@ -411,19 +245,17 @@ class ApiClient {
      * Wraps around jQuery ajax methods to add additional info to the request.
      */
     ajax(request, includeAuthorization) {
-
         if (!request) {
             throw new Error("Request cannot be null");
         }
 
-        return this.fetch(request, includeAuthorization);
+        return fetch(request, includeAuthorization);
     }
 
     /**
      * Gets or sets the current user id.
      */
     getCurrentUser(enableCache) {
-
         if (this._currentUser) {
             return Promise.resolve(this._currentUser);
         }
@@ -438,14 +270,12 @@ class ApiClient {
         let user;
 
         const serverPromise = this.getUser(userId).then(user => {
-
             instance.appStorage.setItem(`user-${user.Id}-${user.ServerId}`, JSON.stringify(user));
 
             instance._currentUser = user;
             return user;
 
-        }, response => {
-
+        }).catch((response) => {
             // if timed out, look for cached value
             if (!response.status) {
 
@@ -471,7 +301,6 @@ class ApiClient {
     }
 
     isLoggedIn() {
-
         const info = this.serverInfo();
         if (info) {
             if (info.UserId && info.AccessToken) {
@@ -483,10 +312,9 @@ class ApiClient {
     }
 
     /**
-    * Logout current user
-    */
+     * Logout current user
+     */
     logout() {
-
         stopBitrateDetection(this);
         this.closeWebSocket();
 
@@ -518,7 +346,6 @@ class ApiClient {
      * @param {String} password
      */
     authenticateUserByName(name, password) {
-
         if (!name) {
             return Promise.reject();
         }
@@ -553,12 +380,11 @@ class ApiClient {
                     afterOnAuthenticated();
                 }
 
-            }, reject);
+            }).catch(reject);
         });
     }
 
     ensureWebSocket() {
-
         if (this.isWebSocketOpenOrConnecting() || !this.isWebSocketSupported()) {
             return;
         }
@@ -571,7 +397,6 @@ class ApiClient {
     }
 
     openWebSocket() {
-
         const accessToken = this.accessToken();
 
         if (!accessToken) {
@@ -600,7 +425,6 @@ class ApiClient {
     }
 
     closeWebSocket() {
-
         const socket = this._webSocket;
 
         if (socket && socket.readyState === WebSocket.OPEN) {
@@ -609,7 +433,6 @@ class ApiClient {
     }
 
     sendWebSocketMessage(name, data) {
-
         console.log(`Sending web socket message: ${name}`);
 
         let msg = { MessageType: name };
@@ -624,19 +447,16 @@ class ApiClient {
     }
 
     sendMessage(name, data) {
-
         if (this.isWebSocketOpen()) {
             this.sendWebSocketMessage(name, data);
         }
     }
 
     isMessageChannelOpen() {
-
         return this.isWebSocketOpen();
     }
 
     isWebSocketOpen() {
-
         const socket = this._webSocket;
 
         if (socket) {
@@ -646,7 +466,6 @@ class ApiClient {
     }
 
     isWebSocketOpenOrConnecting() {
-
         const socket = this._webSocket;
 
         if (socket) {
@@ -656,7 +475,6 @@ class ApiClient {
     }
 
     get(url) {
-
         return this.ajax({
             type: "GET",
             url
@@ -664,8 +482,7 @@ class ApiClient {
     }
 
     getJSON(url, includeAuthorization) {
-
-        return this.fetch({
+        return fetch({
 
             url,
             type: 'GET',
@@ -678,7 +495,6 @@ class ApiClient {
     }
 
     updateServerInfo(server, serverUrl) {
-
         if (server == null) {
             throw new Error('server cannot be null');
         }
@@ -706,7 +522,6 @@ class ApiClient {
     }
 
     encodeName(name) {
-
         name = name.split('/').join('-');
         name = name.split('&').join('-');
         name = name.split('?').join('-');
@@ -716,7 +531,6 @@ class ApiClient {
     }
 
     getDownloadSpeed(byteSize) {
-
         const url = this.getUrl('Playback/BitrateTest', {
 
             Size: byteSize
@@ -725,7 +539,6 @@ class ApiClient {
         const now = new Date().getTime();
 
         return this.ajax({
-
             type: "GET",
             url,
             timeout: 5000
@@ -741,7 +554,6 @@ class ApiClient {
     }
 
     detectBitrate(force) {
-
         if (!force && this.lastDetectedBitrate && (new Date().getTime() - (this.lastDetectedBitrateTime || 0)) <= 3600000) {
             return Promise.resolve(this.lastDetectedBitrate);
         }
@@ -756,7 +568,6 @@ class ApiClient {
      * Omit itemId to get the root folder.
      */
     getItem(userId, itemId) {
-
         if (!itemId) {
             throw new Error("null itemId");
         }
@@ -772,7 +583,6 @@ class ApiClient {
      * Gets the root folder from the server
      */
     getRootFolder(userId) {
-
         if (!userId) {
             throw new Error("null userId");
         }
@@ -783,7 +593,6 @@ class ApiClient {
     }
 
     getNotificationSummary(userId) {
-
         if (!userId) {
             throw new Error("null userId");
         }
@@ -794,7 +603,6 @@ class ApiClient {
     }
 
     getNotifications(userId, options) {
-
         if (!userId) {
             throw new Error("null userId");
         }
@@ -805,7 +613,6 @@ class ApiClient {
     }
 
     markNotificationsRead(userId, idList, isRead) {
-
         if (!userId) {
             throw new Error("null userId");
         }
@@ -830,7 +637,6 @@ class ApiClient {
     }
 
     getRemoteImageProviders(options) {
-
         if (!options) {
             throw new Error("null options");
         }
@@ -843,7 +649,6 @@ class ApiClient {
     }
 
     getAvailableRemoteImages(options) {
-
         if (!options) {
             throw new Error("null options");
         }
@@ -856,7 +661,6 @@ class ApiClient {
     }
 
     downloadRemoteImage(options) {
-
         if (!options) {
             throw new Error("null options");
         }
@@ -872,35 +676,29 @@ class ApiClient {
     }
 
     getRecordingFolders(userId) {
-
         const url = this.getUrl("LiveTv/Recordings/Folders", { userId: userId });
 
         return this.getJSON(url);
     }
 
     getLiveTvInfo(options) {
-
         const url = this.getUrl("LiveTv/Info", options || {});
 
         return this.getJSON(url);
     }
 
     getLiveTvGuideInfo(options) {
-
         const url = this.getUrl("LiveTv/GuideInfo", options || {});
 
         return this.getJSON(url);
     }
 
     getLiveTvChannel(id, userId) {
-
         if (!id) {
             throw new Error("null id");
         }
 
-        const options = {
-
-        };
+        const options = {};
 
         if (userId) {
             options.userId = userId;
@@ -912,7 +710,6 @@ class ApiClient {
     }
 
     getLiveTvChannels(options) {
-
         const url = this.getUrl("LiveTv/Channels", options || {});
 
         return this.getJSON(url);
@@ -920,7 +717,6 @@ class ApiClient {
 
     getLiveTvPrograms(options = {}) {
         if (options.channelIds && options.channelIds.length > 1800) {
-
             return this.ajax({
                 type: "POST",
                 url: this.getUrl("LiveTv/Programs"),
@@ -928,9 +724,7 @@ class ApiClient {
                 contentType: "application/json",
                 dataType: "json"
             });
-
         } else {
-
             return this.ajax({
                 type: "GET",
                 url: this.getUrl("LiveTv/Programs", options),
@@ -948,28 +742,24 @@ class ApiClient {
     }
 
     getLiveTvRecordings(options) {
-
         const url = this.getUrl("LiveTv/Recordings", options || {});
 
         return this.getJSON(url);
     }
 
     getLiveTvRecordingSeries(options) {
-
         const url = this.getUrl("LiveTv/Recordings/Series", options || {});
 
         return this.getJSON(url);
     }
 
     getLiveTvRecordingGroups(options) {
-
         const url = this.getUrl("LiveTv/Recordings/Groups", options || {});
 
         return this.getJSON(url);
     }
 
     getLiveTvRecordingGroup(id) {
-
         if (!id) {
             throw new Error("null id");
         }
@@ -980,14 +770,11 @@ class ApiClient {
     }
 
     getLiveTvRecording(id, userId) {
-
         if (!id) {
             throw new Error("null id");
         }
 
-        const options = {
-
-        };
+        const options = {};
 
         if (userId) {
             options.userId = userId;
@@ -999,14 +786,11 @@ class ApiClient {
     }
 
     getLiveTvProgram(id, userId) {
-
         if (!id) {
             throw new Error("null id");
         }
 
-        const options = {
-
-        };
+        const options = {};
 
         if (userId) {
             options.userId = userId;
@@ -1018,7 +802,6 @@ class ApiClient {
     }
 
     deleteLiveTvRecording(id) {
-
         if (!id) {
             throw new Error("null id");
         }
@@ -1032,7 +815,6 @@ class ApiClient {
     }
 
     cancelLiveTvTimer(id) {
-
         if (!id) {
             throw new Error("null id");
         }
@@ -1046,14 +828,12 @@ class ApiClient {
     }
 
     getLiveTvTimers(options) {
-
         const url = this.getUrl("LiveTv/Timers", options || {});
 
         return this.getJSON(url);
     }
 
     getLiveTvTimer(id) {
-
         if (!id) {
             throw new Error("null id");
         }
@@ -1070,7 +850,6 @@ class ApiClient {
     }
 
     createLiveTvTimer(item) {
-
         if (!item) {
             throw new Error("null item");
         }
@@ -1086,7 +865,6 @@ class ApiClient {
     }
 
     updateLiveTvTimer(item) {
-
         if (!item) {
             throw new Error("null item");
         }
@@ -1102,7 +880,6 @@ class ApiClient {
     }
 
     resetLiveTvTuner(id) {
-
         if (!id) {
             throw new Error("null id");
         }
@@ -1116,14 +893,12 @@ class ApiClient {
     }
 
     getLiveTvSeriesTimers(options) {
-
         const url = this.getUrl("LiveTv/SeriesTimers", options || {});
 
         return this.getJSON(url);
     }
 
     getLiveTvSeriesTimer(id) {
-
         if (!id) {
             throw new Error("null id");
         }
@@ -1134,7 +909,6 @@ class ApiClient {
     }
 
     cancelLiveTvSeriesTimer(id) {
-
         if (!id) {
             throw new Error("null id");
         }
@@ -1148,7 +922,6 @@ class ApiClient {
     }
 
     createLiveTvSeriesTimer(item) {
-
         if (!item) {
             throw new Error("null item");
         }
@@ -1164,7 +937,6 @@ class ApiClient {
     }
 
     updateLiveTvSeriesTimer(item) {
-
         if (!item) {
             throw new Error("null item");
         }
@@ -1180,7 +952,6 @@ class ApiClient {
     }
 
     getRegistrationInfo(feature) {
-
         const url = this.getUrl(`Registrations/${feature}`);
 
         return this.getJSON(url);
@@ -1190,7 +961,6 @@ class ApiClient {
      * Gets the current server status
      */
     getSystemInfo(itemId) {
-
         const url = this.getUrl("System/Info");
 
         const instance = this;
@@ -1203,7 +973,6 @@ class ApiClient {
     }
 
     getSyncStatus() {
-
         const url = this.getUrl("Sync/" + itemId + "/Status");
 
         return this.ajax({
@@ -1221,7 +990,6 @@ class ApiClient {
      * Gets the current server status
      */
     getPublicSystemInfo() {
-
         const url = this.getUrl("System/Info/Public");
 
         const instance = this;
@@ -1234,21 +1002,18 @@ class ApiClient {
     }
 
     getInstantMixFromItem(itemId, options) {
-
         const url = this.getUrl(`Items/${itemId}/InstantMix`, options);
 
         return this.getJSON(url);
     }
 
     getEpisodes(itemId, options) {
-
         const url = this.getUrl(`Shows/${itemId}/Episodes`, options);
 
         return this.getJSON(url);
     }
 
     getDisplayPreferences(id, userId, app) {
-
         const url = this.getUrl(`DisplayPreferences/${id}`, {
             userId,
             client: app
@@ -1258,7 +1023,6 @@ class ApiClient {
     }
 
     updateDisplayPreferences(id, obj, userId, app) {
-
         const url = this.getUrl(`DisplayPreferences/${id}`, {
             userId,
             client: app
@@ -1273,14 +1037,12 @@ class ApiClient {
     }
 
     getSeasons(itemId, options) {
-
         const url = this.getUrl(`Shows/${itemId}/Seasons`, options);
 
         return this.getJSON(url);
     }
 
     getSimilarItems(itemId, options) {
-
         const url = this.getUrl(`Items/${itemId}/Similar`, options);
 
         return this.getJSON(url);
@@ -1290,7 +1052,6 @@ class ApiClient {
      * Gets all cultures known to the server
      */
     getCultures() {
-
         const url = this.getUrl("Localization/cultures");
 
         return this.getJSON(url);
@@ -1300,14 +1061,12 @@ class ApiClient {
      * Gets all countries known to the server
      */
     getCountries() {
-
         const url = this.getUrl("Localization/countries");
 
         return this.getJSON(url);
     }
 
     getPlaybackInfo(itemId, options, deviceProfile) {
-
         const postData = {
             DeviceProfile: deviceProfile
         };
@@ -1322,7 +1081,6 @@ class ApiClient {
     }
 
     getLiveStreamMediaInfo(liveStreamId) {
-
         const postData = {
             LiveStreamId: liveStreamId
         };
@@ -1337,7 +1095,6 @@ class ApiClient {
     }
 
     getIntros(itemId) {
-
         return this.getJSON(this.getUrl(`Users/${this.getCurrentUserId()}/Items/${itemId}/Intros`));
     }
 
@@ -1345,7 +1102,6 @@ class ApiClient {
      * Gets the directory contents of a path on the server
      */
     getDirectoryContents(path, options) {
-
         if (!path) {
             throw new Error("null path");
         }
@@ -1366,7 +1122,6 @@ class ApiClient {
      * Gets shares from a network device
      */
     getNetworkShares(path) {
-
         if (!path) {
             throw new Error("null path");
         }
@@ -1383,7 +1138,6 @@ class ApiClient {
      * Gets the parent of a given path
      */
     getParentPath(path) {
-
         if (!path) {
             throw new Error("null path");
         }
@@ -1404,7 +1158,6 @@ class ApiClient {
      * Gets a list of physical drives from the server
      */
     getDrives() {
-
         const url = this.getUrl("Environment/Drives");
 
         return this.getJSON(url);
@@ -1414,7 +1167,6 @@ class ApiClient {
      * Gets a list of network devices from the server
      */
     getNetworkDevices() {
-
         const url = this.getUrl("Environment/NetworkDevices");
 
         return this.getJSON(url);
@@ -1424,7 +1176,6 @@ class ApiClient {
      * Cancels a package installation
      */
     cancelPackageInstallation(installationId) {
-
         if (!installationId) {
             throw new Error("null installationId");
         }
@@ -1441,7 +1192,6 @@ class ApiClient {
      * Refreshes metadata for an item
      */
     refreshItem(itemId, options) {
-
         if (!itemId) {
             throw new Error("null itemId");
         }
@@ -1458,7 +1208,6 @@ class ApiClient {
      * Installs or updates a new plugin
      */
     installPlugin(name, guid, updateClass, version) {
-
         if (!name) {
             throw new Error("null name");
         }
@@ -1488,7 +1237,6 @@ class ApiClient {
      * Instructs the server to perform a restart.
      */
     restartServer() {
-
         const url = this.getUrl("System/Restart");
 
         return this.ajax({
@@ -1501,7 +1249,6 @@ class ApiClient {
      * Instructs the server to perform a shutdown.
      */
     shutdownServer() {
-
         const url = this.getUrl("System/Shutdown");
 
         return this.ajax({
@@ -1514,7 +1261,6 @@ class ApiClient {
      * Gets information about an installable package
      */
     getPackageInfo(name, guid) {
-
         if (!name) {
             throw new Error("null name");
         }
@@ -1532,7 +1278,6 @@ class ApiClient {
      * Gets the virtual folder list
      */
     getVirtualFolders() {
-
         let url = "Library/VirtualFolders";
 
         url = this.getUrl(url);
@@ -1544,7 +1289,6 @@ class ApiClient {
      * Gets all the paths of the locations in the physical root.
      */
     getPhysicalPaths() {
-
         const url = this.getUrl("Library/PhysicalPaths");
 
         return this.getJSON(url);
@@ -1554,7 +1298,6 @@ class ApiClient {
      * Gets the current server configuration
      */
     getServerConfiguration() {
-
         const url = this.getUrl("System/Configuration");
 
         return this.getJSON(url);
@@ -1564,7 +1307,6 @@ class ApiClient {
      * Gets the current server configuration
      */
     getDevicesOptions() {
-
         const url = this.getUrl("System/Configuration/devices");
 
         return this.getJSON(url);
@@ -1574,7 +1316,6 @@ class ApiClient {
      * Gets the current server configuration
      */
     getContentUploadHistory() {
-
         const url = this.getUrl("Devices/CameraUploads", {
             DeviceId: this.deviceId()
         });
@@ -1583,7 +1324,6 @@ class ApiClient {
     }
 
     getNamedConfiguration(name) {
-
         const url = this.getUrl(`System/Configuration/${name}`);
 
         return this.getJSON(url);
@@ -1599,10 +1339,9 @@ class ApiClient {
     }
 
     /**
-    * Starts a scheduled task
-    */
+     * Starts a scheduled task
+     */
     startScheduledTask(id) {
-
         if (!id) {
             throw new Error("null id");
         }
@@ -1616,10 +1355,9 @@ class ApiClient {
     }
 
     /**
-    * Gets a scheduled task
-    */
+     * Gets a scheduled task
+     */
     getScheduledTask(id) {
-
         if (!id) {
             throw new Error("null id");
         }
@@ -1630,17 +1368,15 @@ class ApiClient {
     }
 
     getNextUpEpisodes(options) {
-
         const url = this.getUrl("Shows/NextUp", options);
 
         return this.getJSON(url);
     }
 
     /**
-    * Stops a scheduled task
-    */
+     * Stops a scheduled task
+     */
     stopScheduledTask(id) {
-
         if (!id) {
             throw new Error("null id");
         }
@@ -1658,7 +1394,6 @@ class ApiClient {
      * @param {String} Id
      */
     getPluginConfiguration(id) {
-
         if (!id) {
             throw new Error("null Id");
         }
@@ -1684,7 +1419,6 @@ class ApiClient {
      * @param {String} Id
      */
     uninstallPlugin(id) {
-
         if (!id) {
             throw new Error("null Id");
         }
@@ -1698,11 +1432,10 @@ class ApiClient {
     }
 
     /**
-    * Removes a virtual folder
-    * @param {String} name
-    */
+     * Removes a virtual folder
+     * @param {String} name
+     */
     removeVirtualFolder(name, refreshLibrary) {
-
         if (!name) {
             throw new Error("null name");
         }
@@ -1721,11 +1454,10 @@ class ApiClient {
     }
 
     /**
-   * Adds a virtual folder
-   * @param {String} name
-   */
+     * Adds a virtual folder
+     * @param {String} name
+     */
     addVirtualFolder(name, type, refreshLibrary, libraryOptions) {
-
         if (!name) {
             throw new Error("null name");
         }
@@ -1754,7 +1486,6 @@ class ApiClient {
     }
 
     updateVirtualFolderOptions(id, libraryOptions) {
-
         if (!id) {
             throw new Error("null name");
         }
@@ -1775,11 +1506,10 @@ class ApiClient {
     }
 
     /**
-   * Renames a virtual folder
-   * @param {String} name
-   */
+     * Renames a virtual folder
+     * @param {String} name
+     */
     renameVirtualFolder(name, newName, refreshLibrary) {
-
         if (!name) {
             throw new Error("null name");
         }
@@ -1799,11 +1529,10 @@ class ApiClient {
     }
 
     /**
-    * Adds an additional mediaPath to an existing virtual folder
-    * @param {String} name
-    */
+     * Adds an additional mediaPath to an existing virtual folder
+     * @param {String} name
+     */
     addMediaPath(virtualFolderName, mediaPath, networkSharePath, refreshLibrary) {
-
         if (!virtualFolderName) {
             throw new Error("null virtualFolderName");
         }
@@ -1837,7 +1566,6 @@ class ApiClient {
     }
 
     updateMediaPath(virtualFolderName, pathInfo) {
-
         if (!virtualFolderName) {
             throw new Error("null virtualFolderName");
         }
@@ -1862,11 +1590,10 @@ class ApiClient {
     }
 
     /**
-    * Removes a media path from a virtual folder
-    * @param {String} name
-    */
+     * Removes a media path from a virtual folder
+     * @param {String} name
+     */
     removeMediaPath(virtualFolderName, mediaPath, refreshLibrary) {
-
         if (!virtualFolderName) {
             throw new Error("null virtualFolderName");
         }
@@ -1894,7 +1621,6 @@ class ApiClient {
      * @param {String} id
      */
     deleteUser(id) {
-
         if (!id) {
             throw new Error("null id");
         }
@@ -1913,7 +1639,6 @@ class ApiClient {
      * @param {String} imageType The type of image to delete, based on the server-side ImageType enum.
      */
     deleteUserImage(userId, imageType, imageIndex) {
-
         if (!userId) {
             throw new Error("null userId");
         }
@@ -1935,7 +1660,6 @@ class ApiClient {
     }
 
     deleteItemImage(itemId, imageType, imageIndex) {
-
         if (!imageType) {
             throw new Error("null imageType");
         }
@@ -1955,7 +1679,6 @@ class ApiClient {
     }
 
     deleteItem(itemId) {
-
         if (!itemId) {
             throw new Error("null itemId");
         }
@@ -1969,7 +1692,6 @@ class ApiClient {
     }
 
     stopActiveEncodings(playSessionId) {
-
         const options = {
             deviceId: this.deviceId()
         };
@@ -1987,7 +1709,6 @@ class ApiClient {
     }
 
     reportCapabilities(options) {
-
         const url = this.getUrl("Sessions/Capabilities/Full");
 
         return this.ajax({
@@ -1999,7 +1720,6 @@ class ApiClient {
     }
 
     updateItemImageIndex(itemId, imageType, imageIndex, newIndex) {
-
         if (!imageType) {
             throw new Error("null imageType");
         }
@@ -2015,14 +1735,12 @@ class ApiClient {
     }
 
     getItemImageInfos(itemId) {
-
         const url = this.getUrl(`Items/${itemId}/Images`);
 
         return this.getJSON(url);
     }
 
     getCriticReviews(itemId, options) {
-
         if (!itemId) {
             throw new Error("null itemId");
         }
@@ -2033,7 +1751,6 @@ class ApiClient {
     }
 
     getItemDownloadUrl(itemId) {
-
         if (!itemId) {
             throw new Error("itemId cannot be empty");
         }
@@ -2046,7 +1763,6 @@ class ApiClient {
     }
 
     getSessions(options) {
-
         const url = this.getUrl("Sessions", options);
 
         return this.getJSON(url);
@@ -2059,7 +1775,6 @@ class ApiClient {
      * @param {Object} file The file from the input element
      */
     uploadUserImage(userId, imageType, file) {
-
         if (!userId) {
             throw new Error("null userId");
         }
@@ -2079,7 +1794,6 @@ class ApiClient {
         const instance = this;
 
         return new Promise((resolve, reject) => {
-
             const reader = new FileReader();
 
             reader.onerror = () => {
@@ -2092,7 +1806,6 @@ class ApiClient {
 
             // Closure to capture the file information.
             reader.onload = e => {
-
                 // Split by a comma to remove the url: prefix
                 const data = e.target.result.split(',')[1];
 
@@ -2112,7 +1825,6 @@ class ApiClient {
     }
 
     uploadItemImage(itemId, imageType, file) {
-
         if (!itemId) {
             throw new Error("null itemId");
         }
@@ -2135,7 +1847,6 @@ class ApiClient {
         const instance = this;
 
         return new Promise((resolve, reject) => {
-
             const reader = new FileReader();
 
             reader.onerror = () => {
@@ -2148,7 +1859,6 @@ class ApiClient {
 
             // Closure to capture the file information.
             reader.onload = e => {
-
                 // Split by a comma to remove the url: prefix
                 const data = e.target.result.split(',')[1];
 
@@ -2169,7 +1879,6 @@ class ApiClient {
      * Gets the list of installed plugins on the server
      */
     getInstalledPlugins() {
-
         const options = {};
 
         const url = this.getUrl("Plugins", options);
@@ -2182,7 +1891,6 @@ class ApiClient {
      * @param {String} id
      */
     getUser(id) {
-
         if (!id) {
             throw new Error("Must supply a userId");
         }
@@ -2196,7 +1904,6 @@ class ApiClient {
      * Gets a studio
      */
     getStudio(name, userId) {
-
         if (!name) {
             throw new Error("null name");
         }
@@ -2216,7 +1923,6 @@ class ApiClient {
      * Gets a genre
      */
     getGenre(name, userId) {
-
         if (!name) {
             throw new Error("null name");
         }
@@ -2233,7 +1939,6 @@ class ApiClient {
     }
 
     getMusicGenre(name, userId) {
-
         if (!name) {
             throw new Error("null name");
         }
@@ -2253,7 +1958,6 @@ class ApiClient {
      * Gets an artist
      */
     getArtist(name, userId) {
-
         if (!name) {
             throw new Error("null name");
         }
@@ -2273,7 +1977,6 @@ class ApiClient {
      * Gets a Person
      */
     getPerson(name, userId) {
-
         if (!name) {
             throw new Error("null name");
         }
@@ -2290,7 +1993,6 @@ class ApiClient {
     }
 
     getPublicUsers() {
-
         const url = this.getUrl("users/public");
 
         return this.ajax({
@@ -2305,7 +2007,6 @@ class ApiClient {
      * Gets all users from the server
      */
     getUsers(options) {
-
         const url = this.getUrl("users", options || {});
 
         return this.getJSON(url);
@@ -2315,7 +2016,6 @@ class ApiClient {
      * Gets all available parental ratings from the server
      */
     getParentalRatings() {
-
         const url = this.getUrl("Localization/ParentalRatings");
 
         return this.getJSON(url);
@@ -2338,7 +2038,6 @@ class ApiClient {
      * For best results do not specify both width and height together, as aspect ratio might be altered.
      */
     getUserImageUrl(userId, options) {
-
         if (!userId) {
             throw new Error("null userId");
         }
@@ -2375,7 +2074,6 @@ class ApiClient {
      * For best results do not specify both width and height together, as aspect ratio might be altered.
      */
     getImageUrl(itemId, options) {
-
         if (!itemId) {
             throw new Error("itemId cannot be empty");
         }
@@ -2402,7 +2100,6 @@ class ApiClient {
     }
 
     getScaledImageUrl(itemId, options) {
-
         if (!itemId) {
             throw new Error("itemId cannot be empty");
         }
@@ -2426,7 +2123,6 @@ class ApiClient {
     }
 
     getThumbImageUrl(item, options) {
-
         if (!item) {
             throw new Error("null item");
         }
@@ -2459,7 +2155,6 @@ class ApiClient {
      * @param {String} newPassword
      */
     updateUserPassword(userId, currentPassword, newPassword) {
-
         if (!userId) {
             return Promise.reject();
         }
@@ -2483,7 +2178,6 @@ class ApiClient {
      * @param {String} newPassword
      */
     updateEasyPassword(userId, newPassword) {
-
         const instance = this;
 
         if (!userId) {
@@ -2503,20 +2197,17 @@ class ApiClient {
     }
 
     /**
-    * Resets a user's password
-    * @param {String} userId
-    */
+     * Resets a user's password
+     * @param {String} userId
+     */
     resetUserPassword(userId) {
-
         if (!userId) {
             throw new Error("null userId");
         }
 
         const url = this.getUrl(`Users/${userId}/Password`);
 
-        const postData = {
-
-        };
+        const postData = {};
 
         postData.resetPassword = true;
 
@@ -2528,16 +2219,13 @@ class ApiClient {
     }
 
     resetEasyPassword(userId) {
-
         if (!userId) {
             throw new Error("null userId");
         }
 
         const url = this.getUrl(`Users/${userId}/EasyPassword`);
 
-        const postData = {
-
-        };
+        const postData = {};
 
         postData.resetPassword = true;
 
@@ -2553,7 +2241,6 @@ class ApiClient {
      * @param {Object} configuration
      */
     updateServerConfiguration(configuration) {
-
         if (!configuration) {
             throw new Error("null configuration");
         }
@@ -2569,7 +2256,6 @@ class ApiClient {
     }
 
     updateNamedConfiguration(name, configuration) {
-
         if (!configuration) {
             throw new Error("null configuration");
         }
@@ -2585,7 +2271,6 @@ class ApiClient {
     }
 
     updateItem(item) {
-
         if (!item) {
             throw new Error("null item");
         }
@@ -2604,7 +2289,6 @@ class ApiClient {
      * Updates plugin security info
      */
     updatePluginSecurityInfo(info) {
-
         const url = this.getUrl("Plugins/SecurityInfo");
 
         return this.ajax({
@@ -2634,7 +2318,6 @@ class ApiClient {
      * @param {Object} user
      */
     updateUser(user) {
-
         if (!user) {
             throw new Error("null user");
         }
@@ -2650,7 +2333,6 @@ class ApiClient {
     }
 
     updateUserPolicy(userId, policy) {
-
         if (!userId) {
             throw new Error("null userId");
         }
@@ -2669,7 +2351,6 @@ class ApiClient {
     }
 
     updateUserConfiguration(userId, configuration) {
-
         if (!userId) {
             throw new Error("null userId");
         }
@@ -2693,7 +2374,6 @@ class ApiClient {
      * @param {Object} triggers
      */
     updateScheduledTaskTriggers(id, triggers) {
-
         if (!id) {
             throw new Error("null id");
         }
@@ -2718,7 +2398,6 @@ class ApiClient {
      * @param {Object} configuration
      */
     updatePluginConfiguration(id, configuration) {
-
         if (!id) {
             throw new Error("null Id");
         }
@@ -2738,7 +2417,6 @@ class ApiClient {
     }
 
     getAncestorItems(itemId, userId) {
-
         if (!itemId) {
             throw new Error("null itemId");
         }
@@ -2772,7 +2450,6 @@ class ApiClient {
      * searchTerm - search term to use as a filter
      */
     getItems(userId, options) {
-
         let url;
 
         if ((typeof userId).toString().toLowerCase() === 'string') {
@@ -2786,30 +2463,25 @@ class ApiClient {
     }
 
     getResumableItems(userId, options) {
-
         if (this.isMinServerVersion('3.2.33')) {
             return this.getJSON(this.getUrl(`Users/${userId}/Items/Resume`, options));
         }
 
         return this.getItems(userId, Object.assign({
-
             SortBy: "DatePlayed",
             SortOrder: "Descending",
             Filters: "IsResumable",
             Recursive: true,
             CollapseBoxSetItems: false,
             ExcludeLocationTypes: "Virtual"
-
         }, options));
     }
 
     getMovieRecommendations(options) {
-
         return this.getJSON(this.getUrl('Movies/Recommendations', options));
     }
 
     getUpcomingEpisodes(options) {
-
         return this.getJSON(this.getUrl('Shows/Upcoming', options));
     }
 
@@ -2820,10 +2492,9 @@ class ApiClient {
     }
 
     /**
-        Gets artists from an item
-    */
+     Gets artists from an item
+     */
     getArtists(userId, options) {
-
         if (!userId) {
             throw new Error("null userId");
         }
@@ -2837,10 +2508,9 @@ class ApiClient {
     }
 
     /**
-        Gets artists from an item
-    */
+     Gets artists from an item
+     */
     getAlbumArtists(userId, options) {
-
         if (!userId) {
             throw new Error("null userId");
         }
@@ -2854,10 +2524,9 @@ class ApiClient {
     }
 
     /**
-        Gets genres from an item
-    */
+     Gets genres from an item
+     */
     getGenres(userId, options) {
-
         if (!userId) {
             throw new Error("null userId");
         }
@@ -2871,7 +2540,6 @@ class ApiClient {
     }
 
     getMusicGenres(userId, options) {
-
         if (!userId) {
             throw new Error("null userId");
         }
@@ -2885,10 +2553,9 @@ class ApiClient {
     }
 
     /**
-        Gets people from an item
-    */
+     Gets people from an item
+     */
     getPeople(userId, options) {
-
         if (!userId) {
             throw new Error("null userId");
         }
@@ -2902,10 +2569,9 @@ class ApiClient {
     }
 
     /**
-        Gets studios from an item
-    */
+     Gets studios from an item
+     */
     getStudios(userId, options) {
-
         if (!userId) {
             throw new Error("null userId");
         }
@@ -2922,7 +2588,6 @@ class ApiClient {
      * Gets local trailers for an item
      */
     getLocalTrailers(userId, itemId) {
-
         if (!userId) {
             throw new Error("null userId");
         }
@@ -2936,7 +2601,6 @@ class ApiClient {
     }
 
     getAdditionalVideoParts(userId, itemId) {
-
         if (!itemId) {
             throw new Error("null itemId");
         }
@@ -2953,7 +2617,6 @@ class ApiClient {
     }
 
     getThemeMedia(userId, itemId, inherit) {
-
         if (!itemId) {
             throw new Error("null itemId");
         }
@@ -2972,7 +2635,6 @@ class ApiClient {
     }
 
     getSearchHints(options) {
-
         const url = this.getUrl("Search/Hints", options);
         const serverId = this.serverId();
 
@@ -2988,7 +2650,6 @@ class ApiClient {
      * Gets special features for an item
      */
     getSpecialFeatures(userId, itemId) {
-
         if (!userId) {
             throw new Error("null userId");
         }
@@ -3002,7 +2663,6 @@ class ApiClient {
     }
 
     getDateParamValue(date) {
-
         function formatDigit(i) {
             return i < 10 ? `0${i}` : i;
         }
@@ -3013,7 +2673,6 @@ class ApiClient {
     }
 
     markPlayed(userId, itemId, date) {
-
         if (!userId) {
             throw new Error("null userId");
         }
@@ -3038,7 +2697,6 @@ class ApiClient {
     }
 
     markUnplayed(userId, itemId) {
-
         if (!userId) {
             throw new Error("null userId");
         }
@@ -3063,7 +2721,6 @@ class ApiClient {
      * @param {Boolean} isFavorite
      */
     updateFavoriteStatus(userId, itemId, isFavorite) {
-
         if (!userId) {
             throw new Error("null userId");
         }
@@ -3090,7 +2747,6 @@ class ApiClient {
      * @param {Boolean} likes
      */
     updateUserItemRating(userId, itemId, likes) {
-
         if (!userId) {
             throw new Error("null userId");
         }
@@ -3111,7 +2767,6 @@ class ApiClient {
     }
 
     getItemCounts(userId) {
-
         const options = {};
 
         if (userId) {
@@ -3129,7 +2784,6 @@ class ApiClient {
      * @param {String} itemId
      */
     clearUserItemRating(userId, itemId) {
-
         if (!userId) {
             throw new Error("null userId");
         }
@@ -3153,7 +2807,6 @@ class ApiClient {
      * @param {String} itemId
      */
     reportPlaybackStart(options) {
-
         if (!options) {
             throw new Error("null options");
         }
@@ -3178,7 +2831,6 @@ class ApiClient {
      * @param {String} itemId
      */
     reportPlaybackProgress(options) {
-
         if (!options) {
             throw new Error("null options");
         }
@@ -3186,12 +2838,10 @@ class ApiClient {
         const newPositionTicks = options.PositionTicks;
 
         if ((options.EventName || 'timeupdate') === 'timeupdate') {
-
             const now = new Date().getTime();
             const msSinceLastReport = now - (this.lastPlaybackProgressReport || 0);
 
             if (msSinceLastReport <= 10000) {
-
                 if (!newPositionTicks) {
                     return Promise.resolve();
                 }
@@ -3199,15 +2849,12 @@ class ApiClient {
                 const expectedReportTicks = (msSinceLastReport * 10000) + (this.lastPlaybackProgressReportTicks || 0);
 
                 if (Math.abs((newPositionTicks || 0) - expectedReportTicks) < (5000 * 10000)) {
-
                     return Promise.resolve();
                 }
             }
 
             this.lastPlaybackProgressReport = now;
-
         } else {
-
             // allow the next timeupdate
             this.lastPlaybackProgressReport = 0;
         }
@@ -3224,7 +2871,6 @@ class ApiClient {
     }
 
     reportOfflineActions(actions) {
-
         if (!actions) {
             throw new Error("null actions");
         }
@@ -3240,7 +2886,6 @@ class ApiClient {
     }
 
     syncData(data) {
-
         if (!data) {
             throw new Error("null data");
         }
@@ -3257,7 +2902,6 @@ class ApiClient {
     }
 
     getReadySyncItems(deviceId) {
-
         if (!deviceId) {
             throw new Error("null deviceId");
         }
@@ -3270,7 +2914,6 @@ class ApiClient {
     }
 
     reportSyncJobItemTransferred(syncJobItemId) {
-
         if (!syncJobItemId) {
             throw new Error("null syncJobItemId");
         }
@@ -3284,7 +2927,6 @@ class ApiClient {
     }
 
     cancelSyncItems(itemIds, targetId) {
-
         if (!itemIds) {
             throw new Error("null itemIds");
         }
@@ -3305,7 +2947,6 @@ class ApiClient {
      * @param {String} itemId
      */
     reportPlaybackStopped(options) {
-
         if (!options) {
             throw new Error("null options");
         }
@@ -3325,7 +2966,6 @@ class ApiClient {
     }
 
     sendPlayCommand(sessionId, options) {
-
         if (!sessionId) {
             throw new Error("null sessionId");
         }
@@ -3343,7 +2983,6 @@ class ApiClient {
     }
 
     sendCommand(sessionId, command) {
-
         if (!sessionId) {
             throw new Error("null sessionId");
         }
@@ -3366,7 +3005,6 @@ class ApiClient {
     }
 
     sendMessageCommand(sessionId, options) {
-
         if (!sessionId) {
             throw new Error("null sessionId");
         }
@@ -3389,7 +3027,6 @@ class ApiClient {
     }
 
     sendPlayStateCommand(sessionId, command, options) {
-
         if (!sessionId) {
             throw new Error("null sessionId");
         }
@@ -3407,7 +3044,6 @@ class ApiClient {
     }
 
     createPackageReview(review) {
-
         const url = this.getUrl(`Packages/Reviews/${review.id}`, review);
 
         return this.ajax({
@@ -3417,7 +3053,6 @@ class ApiClient {
     }
 
     getPackageReviews(packageId, minRating, maxRating, limit) {
-
         if (!packageId) {
             throw new Error("null packageId");
         }
@@ -3440,12 +3075,10 @@ class ApiClient {
     }
 
     getSavedEndpointInfo() {
-
         return this._endPointInfo;
     }
 
     getEndpointInfo() {
-
         const savedValue = this._endPointInfo;
         if (savedValue) {
             return Promise.resolve(savedValue);
@@ -3487,349 +3120,8 @@ class ApiClient {
     }
 
     handleMessageReceived(msg) {
-
         onMessageReceivedInternal(this, msg);
     }
-}
-
-function setSavedEndpointInfo(instance, info) {
-
-    instance._endPointInfo = info;
-}
-
-function getTryConnectPromise(instance, url, state, resolve, reject) {
-
-    console.log('getTryConnectPromise ' + url);
-
-    fetchWithTimeout(instance.getUrl('system/info/public', null, url), {
-
-        method: 'GET',
-        accept: 'application/json'
-
-        // Commenting this out since the fetch api doesn't have a timeout option yet
-        //timeout: timeout
-
-    }, 15000).then(() => {
-
-        if (!state.resolved) {
-            state.resolved = true;
-
-            console.log("Reconnect succeeded to " + url);
-            instance.serverAddress(url);
-            resolve();
-        }
-
-    }, () => {
-
-        if (!state.resolved) {
-            console.log("Reconnect failed to " + url);
-
-            state.rejects++;
-            if (state.rejects >= state.numAddresses) {
-                reject();
-            }
-        }
-    });
-}
-
-function tryReconnectInternal(instance) {
-
-    const addresses = [];
-    const addressesStrings = [];
-
-    const serverInfo = instance.serverInfo();
-    if (serverInfo.LocalAddress && addressesStrings.indexOf(serverInfo.LocalAddress) === -1) {
-        addresses.push({ url: serverInfo.LocalAddress, timeout: 0 });
-        addressesStrings.push(addresses[addresses.length - 1].url);
-    }
-    if (serverInfo.ManualAddress && addressesStrings.indexOf(serverInfo.ManualAddress) === -1) {
-        addresses.push({ url: serverInfo.ManualAddress, timeout: 100 });
-        addressesStrings.push(addresses[addresses.length - 1].url);
-    }
-    if (serverInfo.RemoteAddress && addressesStrings.indexOf(serverInfo.RemoteAddress) === -1) {
-        addresses.push({ url: serverInfo.RemoteAddress, timeout: 200 });
-        addressesStrings.push(addresses[addresses.length - 1].url);
-    }
-
-    console.log('tryReconnect: ' + addressesStrings.join('|'));
-
-    return new Promise((resolve, reject) => {
-
-        const state = {};
-        state.numAddresses = addresses.length;
-        state.rejects = 0;
-
-        addresses.map((url) => {
-
-            setTimeout(() => {
-
-                if (!state.resolved) {
-                    getTryConnectPromise(instance, url.url, state, resolve, reject);
-                }
-
-            }, url.timeout);
-        });
-    });
-}
-
-function tryReconnect(instance, retryCount) {
-
-    retryCount = retryCount || 0;
-
-    if (retryCount >= 20) {
-        return Promise.reject();
-    }
-
-    return tryReconnectInternal(instance).catch((err) => {
-
-        console.log('error in tryReconnectInternal: ' + (err || ''));
-
-        return new Promise((resolve, reject) => {
-
-            setTimeout(() => {
-                tryReconnect(instance, retryCount + 1).then(resolve, reject);
-            }, 500);
-        });
-    });
-}
-
-function getCachedUser(instance, userId) {
-
-    const serverId = instance.serverId();
-    if (!serverId) {
-        return null;
-    }
-
-    const json = instance.appStorage.getItem(`user-${userId}-${serverId}`);
-
-    if (json) {
-        return JSON.parse(json);
-    }
-
-    return null;
-}
-
-function onWebSocketMessage(msg) {
-
-    const instance = this;
-    msg = JSON.parse(msg.data);
-    onMessageReceivedInternal(instance, msg);
-}
-
-const messageIdsReceived = {};
-
-function onMessageReceivedInternal(instance, msg) {
-
-    const messageId = msg.MessageId;
-    if (messageId) {
-
-        // message was already received via another protocol
-        if (messageIdsReceived[messageId]) {
-            return;
-        }
-
-        messageIdsReceived[messageId] = true;
-    }
-
-    if (msg.MessageType === "UserDeleted") {
-        instance._currentUser = null;
-    }
-    else if (msg.MessageType === "UserUpdated" || msg.MessageType === "UserConfigurationUpdated") {
-
-        const user = msg.Data;
-        if (user.Id === instance.getCurrentUserId()) {
-
-            instance._currentUser = null;
-        }
-    }
-
-    events.trigger(instance, 'message', [msg]);
-}
-
-function onWebSocketOpen() {
-
-    const instance = this;
-    console.log('web socket connection opened');
-    events.trigger(instance, 'websocketopen');
-}
-
-function onWebSocketError() {
-
-    const instance = this;
-    events.trigger(instance, 'websocketerror');
-}
-
-function setSocketOnClose(apiClient, socket) {
-
-    socket.onclose = () => {
-
-        console.log('web socket closed');
-
-        if (apiClient._webSocket === socket) {
-            console.log('nulling out web socket');
-            apiClient._webSocket = null;
-        }
-
-        setTimeout(() => {
-            events.trigger(apiClient, 'websocketclose');
-        }, 0);
-    };
-}
-
-function normalizeReturnBitrate(instance, bitrate) {
-
-    if (!bitrate) {
-
-        if (instance.lastDetectedBitrate) {
-            return instance.lastDetectedBitrate;
-        }
-
-        return Promise.reject();
-    }
-
-    let result = Math.round(bitrate * 0.7);
-
-    // allow configuration of this
-    if (instance.getMaxBandwidth) {
-
-        const maxRate = instance.getMaxBandwidth();
-        if (maxRate) {
-            result = Math.min(result, maxRate);
-        }
-    }
-
-    instance.lastDetectedBitrate = result;
-    instance.lastDetectedBitrateTime = new Date().getTime();
-
-    return result;
-}
-
-function detectBitrateInternal(instance, tests, index, currentBitrate) {
-
-    if (index >= tests.length) {
-
-        return normalizeReturnBitrate(instance, currentBitrate);
-    }
-
-    const test = tests[index];
-
-    return instance.getDownloadSpeed(test.bytes).then(bitrate => {
-
-        if (bitrate < test.threshold) {
-
-            return normalizeReturnBitrate(instance, bitrate);
-        } else {
-            return detectBitrateInternal(instance, tests, index + 1, bitrate);
-        }
-
-    }, () => normalizeReturnBitrate(instance, currentBitrate));
-}
-
-function detectBitrateWithEndpointInfo(instance, endpointInfo) {
-
-    if (endpointInfo.IsInNetwork) {
-
-        const result = 140000000;
-        instance.lastDetectedBitrate = result;
-        instance.lastDetectedBitrateTime = new Date().getTime();
-        return result;
-    }
-
-    return detectBitrateInternal(instance, [
-        {
-            bytes: 500000,
-            threshold: 500000
-        },
-        {
-            bytes: 1000000,
-            threshold: 20000000
-        },
-        {
-            bytes: 3000000,
-            threshold: 50000000
-        }], 0);
-}
-
-function getRemoteImagePrefix(instance, options) {
-
-    let urlPrefix;
-
-    if (options.artist) {
-        urlPrefix = `Artists/${instance.encodeName(options.artist)}`;
-        delete options.artist;
-    } else if (options.person) {
-        urlPrefix = `Persons/${instance.encodeName(options.person)}`;
-        delete options.person;
-    } else if (options.genre) {
-        urlPrefix = `Genres/${instance.encodeName(options.genre)}`;
-        delete options.genre;
-    } else if (options.musicGenre) {
-        urlPrefix = `MusicGenres/${instance.encodeName(options.musicGenre)}`;
-        delete options.musicGenre;
-    } else if (options.studio) {
-        urlPrefix = `Studios/${instance.encodeName(options.studio)}`;
-        delete options.studio;
-    } else {
-        urlPrefix = `Items/${options.itemId}`;
-        delete options.itemId;
-    }
-
-    return urlPrefix;
-}
-
-function normalizeImageOptions(instance, options) {
-
-    let ratio = instance._devicePixelRatio || 1;
-
-    if (ratio) {
-
-        if (options.minScale) {
-            ratio = Math.max(options.minScale, ratio);
-        }
-
-        if (options.width) {
-            options.width = Math.round(options.width * ratio);
-        }
-        if (options.height) {
-            options.height = Math.round(options.height * ratio);
-        }
-        if (options.maxWidth) {
-            options.maxWidth = Math.round(options.maxWidth * ratio);
-        }
-        if (options.maxHeight) {
-            options.maxHeight = Math.round(options.maxHeight * ratio);
-        }
-    }
-
-    options.quality = options.quality || instance.getDefaultImageQuality(options.type);
-
-    if (instance.normalizeImageOptions) {
-        instance.normalizeImageOptions(options);
-    }
-}
-
-function compareVersions(a, b) {
-
-    // -1 a is smaller
-    // 1 a is larger
-    // 0 equal
-    a = a.split('.');
-    b = b.split('.');
-
-    for (let i = 0, length = Math.max(a.length, b.length); i < length; i++) {
-        const aVal = parseInt(a[i] || '0');
-        const bVal = parseInt(b[i] || '0');
-
-        if (aVal < bVal) {
-            return -1;
-        }
-
-        if (aVal > bVal) {
-            return 1;
-        }
-    }
-
-    return 0;
 }
 
 export default ApiClient;

@@ -1,4 +1,5 @@
 ﻿import events from './events';
+import { getFetchPromise } from './utils/fetch';
 
 const defaultTimeout = 20000;
 
@@ -20,21 +21,6 @@ function getServerAddress(server, mode) {
         default:
             return server.ManualAddress || server.LocalAddress || server.RemoteAddress;
     }
-}
-
-function paramsToString(params) {
-
-    const values = [];
-
-    for (const key in params) {
-
-        const value = params[key];
-
-        if (value !== null && value !== undefined && value !== '') {
-            values.push(`${encodeURIComponent(key)}=${encodeURIComponent(value)}`);
-        }
-    }
-    return values.join('&');
 }
 
 function resolveFailure(instance, resolve) {
@@ -70,73 +56,6 @@ function updateServerInfo(server, systemInfo) {
 
 function getEmbyServerUrl(baseUrl, handler) {
     return `${baseUrl}/emby/${handler}`;
-}
-
-function getFetchPromise(request) {
-
-    const headers = request.headers || {};
-
-    if (request.dataType === 'json') {
-        headers.accept = 'application/json';
-    }
-
-    const fetchRequest = {
-        headers,
-        method: request.type,
-        credentials: 'same-origin'
-    };
-
-    let contentType = request.contentType;
-
-    if (request.data) {
-
-        if (typeof request.data === 'string') {
-            fetchRequest.body = request.data;
-        } else {
-            fetchRequest.body = paramsToString(request.data);
-
-            contentType = contentType || 'application/x-www-form-urlencoded; charset=UTF-8';
-        }
-    }
-
-    if (contentType) {
-
-        headers['Content-Type'] = contentType;
-    }
-
-    if (!request.timeout) {
-        return fetch(request.url, fetchRequest);
-    }
-
-    return fetchWithTimeout(request.url, fetchRequest, request.timeout);
-}
-
-function fetchWithTimeout(url, options, timeoutMs) {
-
-    console.log(`fetchWithTimeout: timeoutMs: ${timeoutMs}, url: ${url}`);
-
-    return new Promise((resolve, reject) => {
-
-        const timeout = setTimeout(reject, timeoutMs);
-
-        options = options || {};
-        options.credentials = 'same-origin';
-
-        fetch(url, options).then(response => {
-            clearTimeout(timeout);
-
-            console.log(`fetchWithTimeout: succeeded connecting to url: ${url}`);
-
-            resolve(response);
-        }, error => {
-
-            clearTimeout(timeout);
-
-            console.log(`fetchWithTimeout: timed out connecting to url: ${url}`);
-
-            reject();
-        });
-    });
 }
 
 function ajax(request) {
