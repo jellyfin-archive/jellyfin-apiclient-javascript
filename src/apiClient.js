@@ -116,25 +116,22 @@ function getFetchPromise(request) {
  */
 class ApiClient {
     constructor(
-        appStorage,
         serverAddress,
         appName,
         appVersion,
         deviceName,
-        deviceId,
-        devicePixelRatio) {
+        deviceId) {
 
         if (!serverAddress) {
             throw new Error("Must supply a serverAddress");
         }
 
-        console.log(`ApiClient serverAddress: ${serverAddress}`);
-        console.log(`ApiClient appName: ${appName}`);
-        console.log(`ApiClient appVersion: ${appVersion}`);
-        console.log(`ApiClient deviceName: ${deviceName}`);
-        console.log(`ApiClient deviceId: ${deviceId}`);
+        console.debug(`ApiClient serverAddress: ${serverAddress}`);
+        console.debug(`ApiClient appName: ${appName}`);
+        console.debug(`ApiClient appVersion: ${appVersion}`);
+        console.debug(`ApiClient deviceName: ${deviceName}`);
+        console.debug(`ApiClient deviceId: ${deviceId}`);
 
-        this.appStorage = appStorage;
         this._serverInfo = {};
         this._serverAddress = serverAddress;
         this._deviceId = deviceId;
@@ -235,20 +232,16 @@ class ApiClient {
      * @param {String} name
      * @param {Object} params
      */
-    getUrl(name, params, serverAddress) {
+    getUrl(name, params) {
 
         if (!name) {
             throw new Error("Url name cannot be empty");
         }
 
-        let url = serverAddress || this._serverAddress;
+        let url = this._serverAddress;
 
         if (!url) {
             throw new Error("serverAddress is yet not set");
-        }
-        const lowered = url.toLowerCase();
-        if (!lowered.includes('/emby') && !lowered.includes('/mediabrowser')) {
-            url += '/emby';
         }
 
         if (name.charAt(0) !== '/') {
