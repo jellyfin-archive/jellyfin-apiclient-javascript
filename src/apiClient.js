@@ -1,4 +1,5 @@
 ﻿import events from './events';
+import appStorage  from "./appStorage";
 
 function redetectBitrate(instance) {
     stopBitrateDetection(instance);
@@ -138,7 +139,6 @@ class ApiClient {
         this._deviceName = deviceName;
         this._appName = appName;
         this._appVersion = appVersion;
-        this._devicePixelRatio = devicePixelRatio;
     }
 
     appName() {
@@ -3779,7 +3779,7 @@ function getRemoteImagePrefix(instance, options) {
 
 function normalizeImageOptions(instance, options) {
 
-    let ratio = instance._devicePixelRatio || 1;
+    let ratio = window.devicePixelRatio || 1;
 
     if (ratio) {
 

@@ -1,4 +1,5 @@
 ﻿import events from './events';
+import appStorage  from "./appStorage";
 
 function ensure(instance, data) {
     if (!instance._credentials) {
@@ -22,7 +23,7 @@ function set(instance, data) {
 }
 
 export default class Credentials {
-    constructor(appStorage, key) {
+    constructor(key) {
         this.key = key || 'jellyfin_credentials';
         this.appStorage = appStorage;
     }

@@ -1,4 +1,5 @@
 ﻿import events from './events';
+import ApiClient from "./apiClient";
 
 const defaultTimeout = 20000;
 
@@ -69,7 +70,7 @@ function updateServerInfo(server, systemInfo) {
 }
 
 function getEmbyServerUrl(baseUrl, handler) {
-    return `${baseUrl}/emby/${handler}`;
+    return `${baseUrl}/${handler}`;
 }
 
 function getFetchPromise(request) {
@@ -225,14 +226,11 @@ export default class ConnectionManager {
     constructor(
         credentialProvider,
         appStorage,
-        apiClientFactory,
-        serverDiscoveryFn,
         appName,
         appVersion,
         deviceName,
         deviceId,
-        capabilities,
-        devicePixelRatio) {
+        capabilities) {
 
         console.log('Begin ConnectionManager constructor');
 
@@ -316,7 +314,7 @@ export default class ConnectionManager {
 
             if (!apiClient) {
 
-                apiClient = new apiClientFactory(serverUrl, appName, appVersion, deviceName, deviceId, devicePixelRatio);
+                apiClient = new ApiClient(serverUrl, appName, appVersion, deviceName, deviceId);
 
                 self._apiClients.push(apiClient);
 
@@ -544,43 +542,51 @@ export default class ConnectionManager {
             // Clone the array
             const credentials = credentialProvider.credentials();
 
-            return Promise.all([findServers()]).then(responses => {
+            return Promise.all([findServers()]).then((responses) => {
 
                 const foundServers = responses[0];
                 let servers = credentials.Servers.slice(0);
                 mergeServers(credentialProvider, servers, foundServers);
-
                 servers.sort((a, b) => (b.DateLastAccessed || 0) - (a.DateLastAccessed || 0));
                 credentials.Servers = servers;
                 credentialProvider.credentials(credentials);
-
                 return servers;
             });
         };
 
         function findServers() {
-
             return new Promise((resolve, reject) => {
-
-                const onFinish = foundServers => {
-                    const servers = foundServers.map(foundServer => {
-
-                        const info = {
+                var onFinish = function (foundServers) {
+                    var servers = foundServers.map((foundServer) => {
+                        var info = {
                             Id: foundServer.Id,
-                            LocalAddress: convertEndpointAddressToManualAddress(foundServer) || foundServer.Address,
-                            Name: foundServer.Name
+                            LocalAddress:
+                                convertEndpointAddressToManualAddress(
+                                    foundServer
+                                ) || foundServer.Address,
+                            Name: foundServer.Name,
                         };
-
-                        info.LastConnectionMode = info.ManualAddress ? ConnectionMode.Manual : ConnectionMode.Local;
-
+                        info.LastConnectionMode = info.ManualAddress
+                            ? ConnectionMode.Manual
+                            : ConnectionMode.Local;
                         return info;
                     });
                     resolve(servers);
                 };
 
-                serverDiscoveryFn.findServers(1000).then(onFinish, () => {
-                    onFinish([]);
-                });
+                if (
+                    window.NativeShell &&
+                    typeof window.NativeShell.findServers === "function"
+                ) {
+                    window.NativeShell.findServers(1e3).then(
+                        onFinish,
+                        function () {
+                            onFinish([]);
+                        }
+                    );
+                } else {
+                    resolve([]);
+                }
             });
         }
 
@@ -729,7 +735,6 @@ export default class ConnectionManager {
                 options = options || {};
 
                 tryReconnect(server).then((result) => {
-
                     const serverUrl = result.url;
                     const connectionMode = result.connectionMode;
                     result = result.data;
@@ -758,23 +763,13 @@ export default class ConnectionManager {
             });
         };
 
-        function onSuccessfulConnection(server, systemInfo, connectionMode, serverUrl, verifyLocalAuthentication, options, resolve) {
+        function onSuccessfulConnection(server, systemInfo, connectionMode, serverUrl, options, resolve) {
 
             const credentials = credentialProvider.credentials();
             options = options || {};
             if (options.enableAutoLogin === false) {
-
                 server.UserId = null;
                 server.AccessToken = null;
-
-            } else if (verifyLocalAuthentication && server.AccessToken && options.enableAutoLogin !== false) {
-
-                validateAuthentication(server, serverUrl).then(() => {
-
-                    onSuccessfulConnection(server, credentials, systemInfo, connectionMode, serverUrl, false, options, resolve);
-                });
-
-                return;
             }
 
             updateServerInfo(server, systemInfo);
@@ -879,9 +874,9 @@ export default class ConnectionManager {
 
         console.log('Begin connect');
 
-        const instance = this;
-
-        return instance.getAvailableServers().then(servers => instance.connectToServers(servers, options));
+        return this.getAvailableServers().then((servers) => {
+            return this.connectToServers(servers, options)
+        });
     }
 
     handleMessageReceived(msg) {

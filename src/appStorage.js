@@ -14,7 +14,7 @@ function onCacheOpened(result) {
     this.localData = {};
 }
 
-export default class MyStore {
+class AppStore {
     constructor() {
         try {
             if (self.caches) {
@@ -37,6 +37,14 @@ export default class MyStore {
         }
     }
 
+    static getInstance() {
+        if (!AppStore.instance) {
+            AppStore.instance = new AppStore();
+        }
+
+        return AppStore.instance;
+    }
+
     getItem(name) {
         return localStorage.getItem(name);
     }
@@ -51,3 +59,5 @@ export default class MyStore {
         }
     }
 }
+
+export default AppStore.getInstance();
