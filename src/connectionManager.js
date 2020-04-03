@@ -508,9 +508,11 @@ export default class ConnectionManager {
                 const foundServers = responses[0];
                 let servers = credentials.Servers.slice(0);
                 mergeServers(credentialProvider, servers, foundServers);
+
                 servers.sort((a, b) => (b.DateLastAccessed || 0) - (a.DateLastAccessed || 0));
                 credentials.Servers = servers;
                 credentialProvider.credentials(credentials);
+
                 return servers;
             });
         };
