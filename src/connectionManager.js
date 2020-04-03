@@ -1,5 +1,5 @@
 ﻿import events from './events';
-import ApiClient from "./apiClient";
+import ApiClient from './apiClient';
 
 const defaultTimeout = 20000;
 
@@ -10,7 +10,6 @@ const ConnectionMode = {
 };
 
 function getServerAddress(server, mode) {
-
     switch (mode) {
         case ConnectionMode.Local:
             return server.LocalAddress;
@@ -24,11 +23,9 @@ function getServerAddress(server, mode) {
 }
 
 function paramsToString(params) {
-
     const values = [];
 
     for (const key in params) {
-
         const value = params[key];
 
         if (value !== null && value !== undefined && value !== '') {
@@ -39,14 +36,12 @@ function paramsToString(params) {
 }
 
 function resolveFailure(instance, resolve) {
-
     resolve({
         State: 'Unavailable'
     });
 }
 
 function mergeServers(credentialProvider, list1, list2) {
-
     for (let i = 0, length = list2.length; i < length; i++) {
         credentialProvider.addOrUpdateServer(list1, list2[i]);
     }
@@ -55,7 +50,6 @@ function mergeServers(credentialProvider, list1, list2) {
 }
 
 function updateServerInfo(server, systemInfo) {
-
     server.Name = systemInfo.ServerName;
 
     if (systemInfo.Id) {
@@ -74,7 +68,6 @@ function getEmbyServerUrl(baseUrl, handler) {
 }
 
 function getFetchPromise(request) {
-
     const headers = request.headers || {};
 
     if (request.dataType === 'json') {
@@ -90,7 +83,6 @@ function getFetchPromise(request) {
     let contentType = request.contentType;
 
     if (request.data) {
-
         if (typeof request.data === 'string') {
             fetchRequest.body = request.data;
         } else {
@@ -101,7 +93,6 @@ function getFetchPromise(request) {
     }
 
     if (contentType) {
-
         headers['Content-Type'] = contentType;
     }
 
@@ -113,63 +104,61 @@ function getFetchPromise(request) {
 }
 
 function fetchWithTimeout(url, options, timeoutMs) {
-
     console.log(`fetchWithTimeout: timeoutMs: ${timeoutMs}, url: ${url}`);
 
     return new Promise((resolve, reject) => {
-
         const timeout = setTimeout(reject, timeoutMs);
 
         options = options || {};
         options.credentials = 'same-origin';
 
-        fetch(url, options).then(response => {
-            clearTimeout(timeout);
+        fetch(url, options).then(
+            (response) => {
+                clearTimeout(timeout);
 
-            console.log(`fetchWithTimeout: succeeded connecting to url: ${url}`);
+                console.log(`fetchWithTimeout: succeeded connecting to url: ${url}`);
 
-            resolve(response);
-        }, error => {
+                resolve(response);
+            },
+            (error) => {
+                clearTimeout(timeout);
 
-            clearTimeout(timeout);
+                console.log(`fetchWithTimeout: timed out connecting to url: ${url}`);
 
-            console.log(`fetchWithTimeout: timed out connecting to url: ${url}`);
-
-            reject();
-        });
+                reject();
+            }
+        );
     });
 }
 
 function ajax(request) {
-
     if (!request) {
-        throw new Error("Request cannot be null");
+        throw new Error('Request cannot be null');
     }
 
     request.headers = request.headers || {};
 
     console.log(`ConnectionManager requesting url: ${request.url}`);
 
-    return getFetchPromise(request).then(response => {
+    return getFetchPromise(request).then(
+        (response) => {
+            console.log(`ConnectionManager response status: ${response.status}, url: ${request.url}`);
 
-        console.log(`ConnectionManager response status: ${response.status}, url: ${request.url}`);
-
-        if (response.status < 400) {
-
-            if (request.dataType === 'json' || request.headers.accept === 'application/json') {
-                return response.json();
+            if (response.status < 400) {
+                if (request.dataType === 'json' || request.headers.accept === 'application/json') {
+                    return response.json();
+                } else {
+                    return response;
+                }
             } else {
-                return response;
+                return Promise.reject(response);
             }
-        } else {
-            return Promise.reject(response);
+        },
+        (err) => {
+            console.log(`ConnectionManager request failed to url: ${request.url}`);
+            throw err;
         }
-
-    }, err => {
-
-        console.log(`ConnectionManager request failed to url: ${request.url}`);
-        throw err;
-    });
+    );
 }
 
 function replaceAll(originalString, strReplace, strWith) {
@@ -178,7 +167,6 @@ function replaceAll(originalString, strReplace, strWith) {
 }
 
 function normalizeAddress(address) {
-
     // attempt to correct bad input
     address = address.trim();
 
@@ -194,12 +182,10 @@ function normalizeAddress(address) {
 }
 
 function stringEqualsIgnoreCase(str1, str2) {
-
     return (str1 || '').toLowerCase() === (str2 || '').toLowerCase();
 }
 
 function compareVersions(a, b) {
-
     // -1 a is smaller
     // 1 a is larger
     // 0 equal
@@ -223,15 +209,7 @@ function compareVersions(a, b) {
 }
 
 export default class ConnectionManager {
-    constructor(
-        credentialProvider,
-        appStorage,
-        appName,
-        appVersion,
-        deviceName,
-        deviceId,
-        capabilities) {
-
+    constructor(credentialProvider, appStorage, appName, appVersion, deviceName, deviceId, capabilities) {
         console.log('Begin ConnectionManager constructor');
 
         const self = this;
@@ -249,15 +227,13 @@ export default class ConnectionManager {
 
         self.credentialProvider = () => credentialProvider;
 
-        self.getServerInfo = id => {
-
+        self.getServerInfo = (id) => {
             const servers = credentialProvider.credentials().Servers;
 
-            return servers.filter(s => s.Id === id)[0];
+            return servers.filter((s) => s.Id === id)[0];
         };
 
         self.getLastUsedServer = () => {
-
             const servers = credentialProvider.credentials().Servers;
 
             servers.sort((a, b) => (b.DateLastAccessed || 0) - (a.DateLastAccessed || 0));
@@ -269,13 +245,17 @@ export default class ConnectionManager {
             return servers[0];
         };
 
-        self.addApiClient = apiClient => {
-
+        self.addApiClient = (apiClient) => {
             self._apiClients.push(apiClient);
 
-            const existingServers = credentialProvider.credentials().Servers.filter(s => stringEqualsIgnoreCase(s.ManualAddress, apiClient.serverAddress()) ||
-                stringEqualsIgnoreCase(s.LocalAddress, apiClient.serverAddress()) ||
-                stringEqualsIgnoreCase(s.RemoteAddress, apiClient.serverAddress()));
+            const existingServers = credentialProvider
+                .credentials()
+                .Servers.filter(
+                    (s) =>
+                        stringEqualsIgnoreCase(s.ManualAddress, apiClient.serverAddress()) ||
+                        stringEqualsIgnoreCase(s.LocalAddress, apiClient.serverAddress()) ||
+                        stringEqualsIgnoreCase(s.RemoteAddress, apiClient.serverAddress())
+                );
 
             const existingServer = existingServers.length ? existingServers[0] : apiClient.serverInfo();
             existingServer.DateLastAccessed = new Date().getTime();
@@ -300,7 +280,6 @@ export default class ConnectionManager {
         };
 
         self.clearData = () => {
-
             console.log('connection manager clearing data');
 
             const credentials = credentialProvider.credentials();
@@ -309,11 +288,9 @@ export default class ConnectionManager {
         };
 
         self._getOrAddApiClient = (server, serverUrl) => {
-
             let apiClient = self.getApiClient(server.Id);
 
             if (!apiClient) {
-
                 apiClient = new ApiClient(serverUrl, appName, appVersion, deviceName, deviceId);
 
                 self._apiClients.push(apiClient);
@@ -331,10 +308,9 @@ export default class ConnectionManager {
             return apiClient;
         };
 
-        self.getOrCreateApiClient = serverId => {
-
+        self.getOrCreateApiClient = (serverId) => {
             const credentials = credentialProvider.credentials();
-            const servers = credentials.Servers.filter(s => stringEqualsIgnoreCase(s.Id, serverId));
+            const servers = credentials.Servers.filter((s) => stringEqualsIgnoreCase(s.Id, serverId));
 
             if (!servers.length) {
                 throw new Error(`Server not found: ${serverId}`);
@@ -346,9 +322,8 @@ export default class ConnectionManager {
         };
 
         function onAuthenticated(apiClient, result, options, saveCredentials) {
-
             const credentials = credentialProvider.credentials();
-            const servers = credentials.Servers.filter(s => s.Id === result.ServerId);
+            const servers = credentials.Servers.filter((s) => s.Id === result.ServerId);
 
             const server = servers.length ? servers[0] : apiClient.serverInfo();
 
@@ -391,7 +366,6 @@ export default class ConnectionManager {
         }
 
         function onLocalUserSignIn(server, serverUrl, user) {
-
             // Ensure this is created so that listeners of the event can get the apiClient instance
             self._getOrAddApiClient(server, serverUrl);
 
@@ -404,38 +378,33 @@ export default class ConnectionManager {
         }
 
         function validateAuthentication(server, serverUrl) {
-
             return ajax({
-
-                type: "GET",
-                url: getEmbyServerUrl(serverUrl, "System/Info"),
-                dataType: "json",
+                type: 'GET',
+                url: getEmbyServerUrl(serverUrl, 'System/Info'),
+                dataType: 'json',
                 headers: {
-                    "X-MediaBrowser-Token": server.AccessToken
+                    'X-MediaBrowser-Token': server.AccessToken
                 }
-
-            }).then(systemInfo => {
-
-                updateServerInfo(server, systemInfo);
-                return Promise.resolve();
-
-            }, () => {
-
-                server.UserId = null;
-                server.AccessToken = null;
-                return Promise.resolve();
-            });
+            }).then(
+                (systemInfo) => {
+                    updateServerInfo(server, systemInfo);
+                    return Promise.resolve();
+                },
+                () => {
+                    server.UserId = null;
+                    server.AccessToken = null;
+                    return Promise.resolve();
+                }
+            );
         }
 
         function getImageUrl(localUser) {
-
             if (localUser && localUser.PrimaryImageTag) {
-
                 const apiClient = self.getApiClient(localUser);
 
                 const url = apiClient.getUserImageUrl(localUser.Id, {
                     tag: localUser.PrimaryImageTag,
-                    type: "Primary"
+                    type: 'Primary'
                 });
 
                 return {
@@ -450,39 +419,36 @@ export default class ConnectionManager {
             };
         }
 
-        self.user = apiClient => new Promise((resolve, reject) => {
+        self.user = (apiClient) =>
+            new Promise((resolve, reject) => {
+                let localUser;
 
-            let localUser;
+                function onLocalUserDone(e) {
+                    if (apiClient && apiClient.getCurrentUserId()) {
+                        apiClient.getCurrentUser().then((u) => {
+                            localUser = u;
+                            const image = getImageUrl(localUser);
 
-            function onLocalUserDone(e) {
-
-                if (apiClient && apiClient.getCurrentUserId()) {
-                    apiClient.getCurrentUser().then(u => {
-                        localUser = u;
-                        const image = getImageUrl(localUser);
-
-                        resolve({
-                            localUser,
-                            name: (localUser ? localUser.Name : null),
-                            imageUrl: image.url,
-                            supportsImageParams: image.supportsParams,
+                            resolve({
+                                localUser,
+                                name: localUser ? localUser.Name : null,
+                                imageUrl: image.url,
+                                supportsImageParams: image.supportsParams
+                            });
                         });
-                    });
+                    }
                 }
-            }
 
-            if (!(apiClient && apiClient.getCurrentUserId())) {
-                onLocalUserDone();
-            }
-        });
+                if (!(apiClient && apiClient.getCurrentUserId())) {
+                    onLocalUserDone();
+                }
+            });
 
         self.logout = () => {
-
             console.log('begin connectionManager loguot');
             const promises = [];
 
             for (let i = 0, length = self._apiClients.length; i < length; i++) {
-
                 const apiClient = self._apiClients[i];
 
                 if (apiClient.accessToken()) {
@@ -491,13 +457,11 @@ export default class ConnectionManager {
             }
 
             return Promise.all(promises).then(() => {
-
                 const credentials = credentialProvider.credentials();
 
-                const servers = credentials.Servers.filter(u => u.UserLinkType !== "Guest");
+                const servers = credentials.Servers.filter((u) => u.UserLinkType !== 'Guest');
 
                 for (let j = 0, numServers = servers.length; j < numServers; j++) {
-
                     const server = servers[j];
 
                     server.UserId = null;
@@ -508,24 +472,23 @@ export default class ConnectionManager {
         };
 
         function logoutOfServer(apiClient) {
-
             const serverInfo = apiClient.serverInfo() || {};
 
             const logoutInfo = {
                 serverId: serverInfo.Id
             };
 
-            return apiClient.logout().then(() => {
-
-                events.trigger(self, 'localusersignedout', [logoutInfo]);
-            }, () => {
-
-                events.trigger(self, 'localusersignedout', [logoutInfo]);
-            });
+            return apiClient.logout().then(
+                () => {
+                    events.trigger(self, 'localusersignedout', [logoutInfo]);
+                },
+                () => {
+                    events.trigger(self, 'localusersignedout', [logoutInfo]);
+                }
+            );
         }
 
         self.getSavedServers = () => {
-
             const credentials = credentialProvider.credentials();
 
             const servers = credentials.Servers.slice(0);
@@ -536,14 +499,12 @@ export default class ConnectionManager {
         };
 
         self.getAvailableServers = () => {
-
             console.log('Begin getAvailableServers');
 
             // Clone the array
             const credentials = credentialProvider.credentials();
 
             return Promise.all([findServers()]).then((responses) => {
-
                 const foundServers = responses[0];
                 let servers = credentials.Servers.slice(0);
                 mergeServers(credentialProvider, servers, foundServers);
@@ -560,30 +521,19 @@ export default class ConnectionManager {
                     var servers = foundServers.map((foundServer) => {
                         var info = {
                             Id: foundServer.Id,
-                            LocalAddress:
-                                convertEndpointAddressToManualAddress(
-                                    foundServer
-                                ) || foundServer.Address,
-                            Name: foundServer.Name,
+                            LocalAddress: convertEndpointAddressToManualAddress(foundServer) || foundServer.Address,
+                            Name: foundServer.Name
                         };
-                        info.LastConnectionMode = info.ManualAddress
-                            ? ConnectionMode.Manual
-                            : ConnectionMode.Local;
+                        info.LastConnectionMode = info.ManualAddress ? ConnectionMode.Manual : ConnectionMode.Local;
                         return info;
                     });
                     resolve(servers);
                 };
 
-                if (
-                    window.NativeShell &&
-                    typeof window.NativeShell.findServers === "function"
-                ) {
-                    window.NativeShell.findServers(1e3).then(
-                        onFinish,
-                        function () {
-                            onFinish([]);
-                        }
-                    );
+                if (window.NativeShell && typeof window.NativeShell.findServers === 'function') {
+                    window.NativeShell.findServers(1e3).then(onFinish, function () {
+                        onFinish([]);
+                    });
                 } else {
                     resolve([]);
                 }
@@ -591,12 +541,11 @@ export default class ConnectionManager {
         }
 
         function convertEndpointAddressToManualAddress(info) {
-
             if (info.Address && info.EndpointAddress) {
-                let address = info.EndpointAddress.split(":")[0];
+                let address = info.EndpointAddress.split(':')[0];
 
                 // Determine the port, if any
-                const parts = info.Address.split(":");
+                const parts = info.Address.split(':');
                 if (parts.length > 1) {
                     const portString = parts[parts.length - 1];
 
@@ -612,16 +561,13 @@ export default class ConnectionManager {
         }
 
         self.connectToServers = (servers, options) => {
-
             console.log(`Begin connectToServers, with ${servers.length} servers`);
 
             const firstServer = servers.length ? servers[0] : null;
             // See if we have any saved credentials and can auto sign in
             if (firstServer) {
                 return self.connectToServer(firstServer, options).then((result) => {
-
                     if (result.State === 'Unavailable') {
-
                         result.State = 'ServerSelection';
                     }
 
@@ -632,56 +578,56 @@ export default class ConnectionManager {
 
             return Promise.resolve({
                 Servers: servers,
-                State: "ServerSelection"
+                State: 'ServerSelection'
             });
         };
 
         function getTryConnectPromise(url, connectionMode, state, resolve, reject) {
-
             console.log('getTryConnectPromise ' + url);
 
             ajax({
-
                 url: getEmbyServerUrl(url, 'system/info/public'),
                 timeout: defaultTimeout,
                 type: 'GET',
                 dataType: 'json'
+            }).then(
+                (result) => {
+                    if (!state.resolved) {
+                        state.resolved = true;
 
-            }).then((result) => {
+                        console.log('Reconnect succeeded to ' + url);
+                        resolve({
+                            url: url,
+                            connectionMode: connectionMode,
+                            data: result
+                        });
+                    }
+                },
+                () => {
+                    console.log('Reconnect failed to ' + url);
 
-                if (!state.resolved) {
-                    state.resolved = true;
-
-                    console.log("Reconnect succeeded to " + url);
-                    resolve({
-                        url: url,
-                        connectionMode: connectionMode,
-                        data: result
-                    });
-                }
-
-            }, () => {
-
-                console.log("Reconnect failed to " + url);
-
-                if (!state.resolved) {
-                    state.rejects++;
-                    if (state.rejects >= state.numAddresses) {
-                        reject();
+                    if (!state.resolved) {
+                        state.rejects++;
+                        if (state.rejects >= state.numAddresses) {
+                            reject();
+                        }
                     }
                 }
-            });
+            );
         }
 
         function tryReconnect(serverInfo) {
-
             const addresses = [];
             const addressesStrings = [];
 
             // the timeouts are a small hack to try and ensure the remote address doesn't resolve first
 
             // manualAddressOnly is used for the local web app that always connects to a fixed address
-            if (!serverInfo.manualAddressOnly && serverInfo.LocalAddress && addressesStrings.indexOf(serverInfo.LocalAddress) === -1) {
+            if (
+                !serverInfo.manualAddressOnly &&
+                serverInfo.LocalAddress &&
+                addressesStrings.indexOf(serverInfo.LocalAddress) === -1
+            ) {
                 addresses.push({
                     url: serverInfo.LocalAddress,
                     mode: ConnectionMode.Local,
@@ -697,7 +643,11 @@ export default class ConnectionManager {
                 });
                 addressesStrings.push(addresses[addresses.length - 1].url);
             }
-            if (!serverInfo.manualAddressOnly && serverInfo.RemoteAddress && addressesStrings.indexOf(serverInfo.RemoteAddress) === -1) {
+            if (
+                !serverInfo.manualAddressOnly &&
+                serverInfo.RemoteAddress &&
+                addressesStrings.indexOf(serverInfo.RemoteAddress) === -1
+            ) {
                 addresses.push({
                     url: serverInfo.RemoteAddress,
                     mode: ConnectionMode.Remote,
@@ -709,62 +659,55 @@ export default class ConnectionManager {
             console.log('tryReconnect: ' + addressesStrings.join('|'));
 
             return new Promise((resolve, reject) => {
-
                 const state = {};
                 state.numAddresses = addresses.length;
                 state.rejects = 0;
 
                 addresses.map((url) => {
-
                     setTimeout(() => {
                         if (!state.resolved) {
                             getTryConnectPromise(url.url, url.mode, state, resolve, reject);
                         }
-
                     }, url.timeout);
                 });
             });
         }
 
         self.connectToServer = (server, options) => {
-
             console.log('begin connectToServer');
 
             return new Promise((resolve, reject) => {
-
                 options = options || {};
 
-                tryReconnect(server).then((result) => {
-                    const serverUrl = result.url;
-                    const connectionMode = result.connectionMode;
-                    result = result.data;
+                tryReconnect(server).then(
+                    (result) => {
+                        const serverUrl = result.url;
+                        const connectionMode = result.connectionMode;
+                        result = result.data;
 
-                    if (compareVersions(self.minServerVersion(), result.Version) === 1) {
-
-                        console.log('minServerVersion requirement not met. Server version: ' + result.Version);
-                        resolve({
-                            State: 'ServerUpdateNeeded',
-                            Servers: [server]
-                        });
-
-                    } else if (server.Id && result.Id !== server.Id) {
-
-                        console.log('http request succeeded, but found a different server Id than what was expected');
+                        if (compareVersions(self.minServerVersion(), result.Version) === 1) {
+                            console.log('minServerVersion requirement not met. Server version: ' + result.Version);
+                            resolve({
+                                State: 'ServerUpdateNeeded',
+                                Servers: [server]
+                            });
+                        } else if (server.Id && result.Id !== server.Id) {
+                            console.log(
+                                'http request succeeded, but found a different server Id than what was expected'
+                            );
+                            resolveFailure(self, resolve);
+                        } else {
+                            onSuccessfulConnection(server, result, connectionMode, serverUrl, options, resolve);
+                        }
+                    },
+                    () => {
                         resolveFailure(self, resolve);
-
-                    } else {
-                        onSuccessfulConnection(server, result, connectionMode, serverUrl, options, resolve);
                     }
-
-                }, () => {
-
-                    resolveFailure(self, resolve);
-                });
+                );
             });
         };
 
         function onSuccessfulConnection(server, systemInfo, connectionMode, serverUrl, options, resolve) {
-
             const credentials = credentialProvider.credentials();
             options = options || {};
             if (options.enableAutoLogin === false) {
@@ -790,9 +733,7 @@ export default class ConnectionManager {
 
             result.ApiClient.setSystemInfo(systemInfo);
 
-            result.State = server.AccessToken && options.enableAutoLogin !== false ?
-                'SignedIn' :
-                'ServerSignIn';
+            result.State = server.AccessToken && options.enableAutoLogin !== false ? 'SignedIn' : 'ServerSignIn';
 
             result.Servers.push(server);
 
@@ -819,7 +760,6 @@ export default class ConnectionManager {
         }
 
         self.connectToAddress = function (address, options) {
-
             if (!address) {
                 return Promise.reject();
             }
@@ -842,21 +782,19 @@ export default class ConnectionManager {
             return self.connectToServer(server, options).catch(onFail);
         };
 
-        self.deleteServer = serverId => {
-
+        self.deleteServer = (serverId) => {
             if (!serverId) {
-                throw new Error("null serverId");
+                throw new Error('null serverId');
             }
 
-            let server = credentialProvider.credentials().Servers.filter(s => s.Id === serverId);
+            let server = credentialProvider.credentials().Servers.filter((s) => s.Id === serverId);
             server = server.length ? server[0] : null;
 
             return new Promise((resolve, reject) => {
-
                 function onDone() {
                     const credentials = credentialProvider.credentials();
 
-                    credentials.Servers = credentials.Servers.filter(s => s.Id !== serverId);
+                    credentials.Servers = credentials.Servers.filter((s) => s.Id !== serverId);
 
                     credentialProvider.credentials(credentials);
                     resolve();
@@ -871,26 +809,23 @@ export default class ConnectionManager {
     }
 
     connect(options) {
-
         console.log('Begin connect');
 
         return this.getAvailableServers().then((servers) => {
-            return this.connectToServers(servers, options)
+            return this.connectToServers(servers, options);
         });
     }
 
     handleMessageReceived(msg) {
-
         const serverId = msg.ServerId;
         if (serverId) {
             const apiClient = this.getApiClient(serverId);
             if (apiClient) {
-
-                if (typeof (msg.Data) === 'string') {
+                if (typeof msg.Data === 'string') {
                     try {
                         msg.Data = JSON.parse(msg.Data);
                     } catch (err) {
-                        console.log("unable to parse json content: " + err);
+                        console.log('unable to parse json content: ' + err);
                     }
                 }
 
@@ -900,7 +835,6 @@ export default class ConnectionManager {
     }
 
     getApiClients() {
-
         const servers = this.getSavedServers();
 
         for (let i = 0, length = servers.length; i < length; i++) {
@@ -914,7 +848,6 @@ export default class ConnectionManager {
     }
 
     getApiClient(item) {
-
         if (!item) {
             throw new Error('item or serverId cannot be null');
         }
@@ -924,18 +857,15 @@ export default class ConnectionManager {
             item = item.ServerId;
         }
 
-        return this._apiClients.filter(a => {
-
+        return this._apiClients.filter((a) => {
             const serverInfo = a.serverInfo();
 
             // We have to keep this hack in here because of the addApiClient method
             return !serverInfo || serverInfo.Id === item;
-
         })[0];
     }
 
     minServerVersion(val) {
-
         if (val) {
             this._minServerVersion = val;
         }

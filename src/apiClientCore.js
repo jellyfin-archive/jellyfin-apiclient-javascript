@@ -23,7 +23,6 @@ function stripLocalPrefix(str) {
 }
 
 function startsWith(str, find) {
-
     if (str && find && str.length > find.length) {
         if (str.indexOf(find) === 0) {
             return true;
@@ -51,7 +50,6 @@ function createEmptyList() {
 }
 
 function convertGuidToLocal(guid) {
-
     if (!guid) {
         return null;
     }
@@ -64,7 +62,6 @@ function convertGuidToLocal(guid) {
 }
 
 function adjustGuidProperties(downloadedItem) {
-
     downloadedItem.Id = convertGuidToLocal(downloadedItem.Id);
     downloadedItem.SeriesId = convertGuidToLocal(downloadedItem.SeriesId);
     downloadedItem.SeasonId = convertGuidToLocal(downloadedItem.SeasonId);
@@ -81,13 +78,10 @@ function adjustGuidProperties(downloadedItem) {
 }
 
 function getLocalView(instance, serverId, userId) {
-
-    return instance.getLocalFolders(serverId, userId).then(views => {
-
+    return instance.getLocalFolders(serverId, userId).then((views) => {
         let localView = null;
 
         if (views.length > 0) {
-
             localView = {
                 Name: instance.downloadsTitleText || 'Downloads',
                 ServerId: serverId,
@@ -116,21 +110,19 @@ class ApiClientEx extends ApiClient {
         deviceName,
         deviceId,
         devicePixelRatio,
-        localAssetManager) {
-
+        localAssetManager
+    ) {
         super(appStorage, serverAddress, clientName, applicationVersion, deviceName, deviceId, devicePixelRatio);
         this.localAssetManager = localAssetManager;
     }
 
     getPlaybackInfo(itemId, options, deviceProfile) {
-
         const onFailure = () => ApiClient.prototype.getPlaybackInfo.call(instance, itemId, options, deviceProfile);
 
         if (isLocalId(itemId)) {
-            return this.localAssetManager.getLocalItem(this.serverId(), stripLocalPrefix(itemId)).then(item => {
-
+            return this.localAssetManager.getLocalItem(this.serverId(), stripLocalPrefix(itemId)).then((item) => {
                 // TODO: This was already done during the sync process, right? If so, remove it
-                const mediaSources = item.Item.MediaSources.map(m => {
+                const mediaSources = item.Item.MediaSources.map((m) => {
                     m.SupportsDirectPlay = true;
                     m.SupportsDirectStream = false;
                     m.SupportsTranscoding = false;
@@ -141,16 +133,13 @@ class ApiClientEx extends ApiClient {
                 return {
                     MediaSources: mediaSources
                 };
-
             }, onFailure);
         }
 
         var instance = this;
-        return this.localAssetManager.getLocalItem(this.serverId(), itemId).then(item => {
-
+        return this.localAssetManager.getLocalItem(this.serverId(), itemId).then((item) => {
             if (item) {
-
-                const mediaSources = item.Item.MediaSources.map(m => {
+                const mediaSources = item.Item.MediaSources.map((m) => {
                     m.SupportsDirectPlay = true;
                     m.SupportsDirectStream = false;
                     m.SupportsTranscoding = false;
@@ -158,10 +147,8 @@ class ApiClientEx extends ApiClient {
                     return m;
                 });
 
-                return instance.localAssetManager.fileExists(item.LocalPath).then(exists => {
-
+                return instance.localAssetManager.fileExists(item.LocalPath).then((exists) => {
                     if (exists) {
-
                         const res = {
                             MediaSources: mediaSources
                         };
@@ -170,23 +157,19 @@ class ApiClientEx extends ApiClient {
                     }
 
                     return ApiClient.prototype.getPlaybackInfo.call(instance, itemId, options, deviceProfile);
-
                 }, onFailure);
             }
 
             return ApiClient.prototype.getPlaybackInfo.call(instance, itemId, options, deviceProfile);
-
         }, onFailure);
     }
 
     getItems(userId, options) {
-
         const serverInfo = this.serverInfo();
         let i;
 
         if (serverInfo && options.ParentId === 'localview') {
-
-            return this.getLocalFolders(serverInfo.Id, userId).then(items => {
+            return this.getLocalFolders(serverInfo.Id, userId).then((items) => {
                 const result = {
                     Items: items,
                     TotalRecordCount: items.length
@@ -194,12 +177,17 @@ class ApiClientEx extends ApiClient {
 
                 return Promise.resolve(result);
             });
-
-        } else if (serverInfo && options && (isLocalId(options.ParentId) || isLocalId(options.SeriesId) || isLocalId(options.SeasonId) || isLocalViewId(options.ParentId) || isLocalId(options.AlbumIds))) {
-
-            return this.localAssetManager.getViewItems(serverInfo.Id, userId, options).then(items => {
-
-                items.forEach(item => {
+        } else if (
+            serverInfo &&
+            options &&
+            (isLocalId(options.ParentId) ||
+                isLocalId(options.SeriesId) ||
+                isLocalId(options.SeasonId) ||
+                isLocalViewId(options.ParentId) ||
+                isLocalId(options.AlbumIds))
+        ) {
+            return this.localAssetManager.getViewItems(serverInfo.Id, userId, options).then((items) => {
+                items.forEach((item) => {
                     adjustGuidProperties(item);
                 });
 
@@ -211,7 +199,6 @@ class ApiClientEx extends ApiClient {
                 return Promise.resolve(result);
             });
         } else if (options && options.ExcludeItemIds && options.ExcludeItemIds.length) {
-
             const exItems = options.ExcludeItemIds.split(',');
 
             for (i = 0; i < exItems.length; i++) {
@@ -220,7 +207,6 @@ class ApiClientEx extends ApiClient {
                 }
             }
         } else if (options && options.Ids && options.Ids.length) {
-
             const ids = options.Ids.split(',');
             let hasLocal = false;
 
@@ -231,9 +217,8 @@ class ApiClientEx extends ApiClient {
             }
 
             if (hasLocal) {
-                return this.localAssetManager.getItemsFromIds(serverInfo.Id, ids).then(items => {
-
-                    items.forEach(item => {
+                return this.localAssetManager.getItemsFromIds(serverInfo.Id, ids).then((items) => {
+                    items.forEach((item) => {
                         adjustGuidProperties(item);
                     });
 
@@ -251,7 +236,6 @@ class ApiClientEx extends ApiClient {
     }
 
     getUserViews(options, userId) {
-
         const instance = this;
 
         options = options || {};
@@ -262,15 +246,11 @@ class ApiClientEx extends ApiClient {
             return basePromise;
         }
 
-        return basePromise.then(result => {
-
+        return basePromise.then((result) => {
             const serverInfo = instance.serverInfo();
             if (serverInfo) {
-
-                return getLocalView(instance, serverInfo.Id, userId).then(localView => {
-
+                return getLocalView(instance, serverInfo.Id, userId).then((localView) => {
                     if (localView) {
-
                         result.Items.push(localView);
                         result.TotalRecordCount++;
                     }
@@ -284,9 +264,8 @@ class ApiClientEx extends ApiClient {
     }
 
     getItem(userId, itemId) {
-
         if (!itemId) {
-            throw new Error("null itemId");
+            throw new Error('null itemId');
         }
 
         if (itemId) {
@@ -296,7 +275,6 @@ class ApiClientEx extends ApiClient {
         let serverInfo;
 
         if (isTopLevelLocalViewId(itemId)) {
-
             serverInfo = this.serverInfo();
 
             if (serverInfo) {
@@ -305,13 +283,11 @@ class ApiClientEx extends ApiClient {
         }
 
         if (isLocalViewId(itemId)) {
-
             serverInfo = this.serverInfo();
 
             if (serverInfo) {
-                return this.getLocalFolders(serverInfo.Id, userId).then(items => {
-
-                    const views = items.filter(item => item.Id === itemId);
+                return this.getLocalFolders(serverInfo.Id, userId).then((items) => {
+                    const views = items.filter((item) => item.Id === itemId);
 
                     if (views.length > 0) {
                         return Promise.resolve(views[0]);
@@ -324,12 +300,10 @@ class ApiClientEx extends ApiClient {
         }
 
         if (isLocalId(itemId)) {
-
             serverInfo = this.serverInfo();
 
             if (serverInfo) {
-                return this.localAssetManager.getLocalItem(serverInfo.Id, stripLocalPrefix(itemId)).then(item => {
-
+                return this.localAssetManager.getLocalItem(serverInfo.Id, stripLocalPrefix(itemId)).then((item) => {
                     adjustGuidProperties(item.Item);
 
                     return Promise.resolve(item.Item);
@@ -341,7 +315,6 @@ class ApiClientEx extends ApiClient {
     }
 
     getLocalFolders(userId) {
-
         const serverInfo = this.serverInfo();
         userId = userId || serverInfo.UserId;
 
@@ -349,7 +322,6 @@ class ApiClientEx extends ApiClient {
     }
 
     getNextUpEpisodes(options) {
-
         if (options.SeriesId) {
             if (isLocalId(options.SeriesId)) {
                 return Promise.resolve(createEmptyList());
@@ -360,7 +332,6 @@ class ApiClientEx extends ApiClient {
     }
 
     getSeasons(itemId, options) {
-
         if (isLocalId(itemId)) {
             options.SeriesId = itemId;
             options.IncludeItemTypes = 'Season';
@@ -371,7 +342,6 @@ class ApiClientEx extends ApiClient {
     }
 
     getEpisodes(itemId, options) {
-
         if (isLocalId(options.SeasonId) || isLocalId(options.seasonId)) {
             options.SeriesId = itemId;
             options.IncludeItemTypes = 'Episode';
@@ -389,7 +359,6 @@ class ApiClientEx extends ApiClient {
     }
 
     getLatestOfflineItems(options) {
-
         // Supported options
         // MediaType - Audio/Video/Photo/Book/Game
         // Limit
@@ -401,10 +370,8 @@ class ApiClientEx extends ApiClient {
         const serverInfo = this.serverInfo();
 
         if (serverInfo) {
-
-            return this.localAssetManager.getViewItems(serverInfo.Id, null, options).then(items => {
-
-                items.forEach(item => {
+            return this.localAssetManager.getViewItems(serverInfo.Id, null, options).then((items) => {
+                items.forEach((item) => {
                     adjustGuidProperties(item);
                 });
 
@@ -416,7 +383,6 @@ class ApiClientEx extends ApiClient {
     }
 
     getThemeMedia(userId, itemId, inherit) {
-
         if (isLocalViewId(itemId) || isLocalId(itemId) || isTopLevelLocalViewId(itemId)) {
             return Promise.reject();
         }
@@ -425,7 +391,6 @@ class ApiClientEx extends ApiClient {
     }
 
     getSpecialFeatures(userId, itemId) {
-
         if (isLocalId(itemId)) {
             return Promise.resolve([]);
         }
@@ -434,7 +399,6 @@ class ApiClientEx extends ApiClient {
     }
 
     getSimilarItems(itemId, options) {
-
         if (isLocalId(itemId)) {
             return Promise.resolve(createEmptyList());
         }
@@ -443,7 +407,6 @@ class ApiClientEx extends ApiClient {
     }
 
     updateFavoriteStatus(userId, itemId, isFavorite) {
-
         if (isLocalId(itemId)) {
             return Promise.resolve();
         }
@@ -452,9 +415,7 @@ class ApiClientEx extends ApiClient {
     }
 
     getScaledImageUrl(itemId, options) {
-
         if (isLocalId(itemId) || (options && options.itemid && isLocalId(options.itemid))) {
-
             const serverInfo = this.serverInfo();
             const id = stripLocalPrefix(itemId);
 
@@ -465,9 +426,8 @@ class ApiClientEx extends ApiClient {
     }
 
     reportPlaybackStart(options) {
-
         if (!options) {
-            throw new Error("null options");
+            throw new Error('null options');
         }
 
         if (isLocalId(options.ItemId)) {
@@ -478,30 +438,34 @@ class ApiClientEx extends ApiClient {
     }
 
     reportPlaybackProgress(options) {
-
         if (!options) {
-            throw new Error("null options");
+            throw new Error('null options');
         }
 
         if (isLocalId(options.ItemId)) {
             const serverInfo = this.serverInfo();
 
             if (serverInfo) {
-
                 const instance = this;
-                return this.localAssetManager.getLocalItem(serverInfo.Id, stripLocalPrefix(options.ItemId)).then(item => {
+                return this.localAssetManager
+                    .getLocalItem(serverInfo.Id, stripLocalPrefix(options.ItemId))
+                    .then((item) => {
+                        const libraryItem = item.Item;
 
-                    const libraryItem = item.Item;
+                        if (libraryItem.MediaType === 'Video' || libraryItem.Type === 'AudioBook') {
+                            libraryItem.UserData = libraryItem.UserData || {};
+                            libraryItem.UserData.PlaybackPositionTicks = options.PositionTicks;
+                            libraryItem.UserData.PlayedPercentage = Math.min(
+                                libraryItem.RunTimeTicks
+                                    ? 100 * ((options.PositionTicks || 0) / libraryItem.RunTimeTicks)
+                                    : 0,
+                                100
+                            );
+                            return instance.localAssetManager.addOrUpdateLocalItem(item);
+                        }
 
-                    if (libraryItem.MediaType === 'Video' || libraryItem.Type === 'AudioBook') {
-                        libraryItem.UserData = libraryItem.UserData || {};
-                        libraryItem.UserData.PlaybackPositionTicks = options.PositionTicks;
-                        libraryItem.UserData.PlayedPercentage = Math.min(libraryItem.RunTimeTicks ? (100 * ((options.PositionTicks || 0) / libraryItem.RunTimeTicks)) : 0, 100);
-                        return instance.localAssetManager.addOrUpdateLocalItem(item);
-                    }
-
-                    return Promise.resolve();
-                });
+                        return Promise.resolve();
+                    });
             }
 
             return Promise.resolve();
@@ -511,24 +475,21 @@ class ApiClientEx extends ApiClient {
     }
 
     reportPlaybackStopped(options) {
-
         if (!options) {
-            throw new Error("null options");
+            throw new Error('null options');
         }
 
         if (isLocalId(options.ItemId)) {
-
             const serverInfo = this.serverInfo();
 
-            const action =
-                {
-                    Date: new Date().getTime(),
-                    ItemId: stripLocalPrefix(options.ItemId),
-                    PositionTicks: options.PositionTicks,
-                    ServerId: serverInfo.Id,
-                    Type: 0, // UserActionType.PlayedItem
-                    UserId: this.getCurrentUserId()
-                };
+            const action = {
+                Date: new Date().getTime(),
+                ItemId: stripLocalPrefix(options.ItemId),
+                PositionTicks: options.PositionTicks,
+                ServerId: serverInfo.Id,
+                Type: 0, // UserActionType.PlayedItem
+                UserId: this.getCurrentUserId()
+            };
 
             return this.localAssetManager.recordUserAction(action);
         }
@@ -537,7 +498,6 @@ class ApiClientEx extends ApiClient {
     }
 
     getIntros(itemId) {
-
         if (isLocalId(itemId)) {
             return Promise.resolve({
                 Items: [],
@@ -549,7 +509,6 @@ class ApiClientEx extends ApiClient {
     }
 
     getInstantMixFromItem(itemId, options) {
-
         if (isLocalId(itemId)) {
             return Promise.resolve({
                 Items: [],
@@ -561,14 +520,13 @@ class ApiClientEx extends ApiClient {
     }
 
     getItemDownloadUrl(itemId) {
-
         if (isLocalId(itemId)) {
-
             const serverInfo = this.serverInfo();
 
             if (serverInfo) {
-
-                return this.localAssetManager.getLocalItem(serverInfo.Id, stripLocalPrefix(itemId)).then(item => Promise.resolve(item.LocalPath));
+                return this.localAssetManager
+                    .getLocalItem(serverInfo.Id, stripLocalPrefix(itemId))
+                    .then((item) => Promise.resolve(item.LocalPath));
             }
         }
 

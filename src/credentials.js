@@ -1,5 +1,5 @@
 ﻿import events from './events';
-import appStorage  from "./appStorage";
+import appStorage from './appStorage';
 
 function ensure(instance, data) {
     if (!instance._credentials) {
@@ -51,10 +51,7 @@ export default class Credentials {
 
         if (existing) {
             // Merge the data
-            existing.DateLastAccessed = Math.max(
-                existing.DateLastAccessed || 0,
-                server.DateLastAccessed || 0
-            );
+            existing.DateLastAccessed = Math.max(existing.DateLastAccessed || 0, server.DateLastAccessed || 0);
 
             existing.UserLinkType = server.UserLinkType;
 
