@@ -54,13 +54,13 @@ This library depends on the Fetch and Promise APIs. These will be expected to be
     yarn install
     ```
 
-3a. Build the library for production
+3. Build the library for production
 
     ```sh
     yarn build
     ```
 
-3b. Build the library for development
+4. Build the library for development
 
     ```sh
     yarn dev
