@@ -14,6 +14,11 @@ plugins:
   - "promise"
   - "import"
 
+rules:
+  promise/always-return: ["warn"]
+  promise/catch-or-return: ["warn"]
+  promise/no-return-wrap: ["warn"]
+
 parserOptions:
   ecmaVersion: 6
   sourceType: module
@@ -32,6 +37,16 @@ overrides:
       project: ['./tsconfig.json']
     plugins:
       - '@typescript-eslint'
+    rules:
+      no-var: ["warn"]
+      no-undef: ["warn"]
+      prefer-rest-params: ["warn"]
+      prefer-const: ["warn"]
+      "@typescript-eslint/camelcase": ["warn"]
+      "@typescript-eslint/no-use-before-define": ["warn"]
+      "@typescript-eslint/no-this-alias": ["warn"]
+      "@typescript-eslint/prefer-string-starts-ends-with": ["warn"]
+      "@typescript-eslint/prefer-includes": ["warn"]
   - files:
       "tests/**/*.js"
     env:

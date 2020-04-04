@@ -41,26 +41,26 @@ This library depends on the Fetch and Promise APIs. These will be expected to be
 
 ### Getting Started
 
-1. Clone or download this repository.
+1. Clone or download this repository
 
-   ```sh
-   git clone https://github.com/jellyfin/jellyfin-apiclient-javascript.git
-   cd jellyfin-apiclient-javascript
-   ```
+    ```sh
+    git clone https://github.com/jellyfin/jellyfin-apiclient-javascript.git
+    cd jellyfin-apiclient-javascript
+    ```
 
- 2. Install build dependencies in the project directory.
+2. Install build dependencies in the project directory
 
     ```sh
     yarn install
     ```
 
-3. Build the library for production.
+3. Build the library for production
 
     ```sh
     yarn build
     ```
 
-4. Build the library for development.
+4. Build the library for development
 
     ```sh
     yarn dev
@@ -68,4 +68,4 @@ This library depends on the Fetch and Promise APIs. These will be expected to be
 
 ## Building Documentation
 
-This library is documented using [JSDoc](https://jsdoc.app/) style comments. Documentation can be generated in HTML format by running `yarn docs`. The resulting documentation will be saved in the `docs/` directory.
+This library is documented using [JSDoc](https://jsdoc.app/) style comments. Documentation can be generated in HTML format by running `yarn docs` and viewing the files in any modern browser. The resulting documentation will be saved in the `docs` directory.

@@ -2,8 +2,7 @@ trigger:
   batch: true
   branches:
     include:
-    - master
-    - release-*
+    - '*'
   tags:
     include:
     - '*'
@@ -14,11 +13,8 @@ pr:
     - '*'
 
 jobs:
-  - job: main_build
-    displayName: 'Main Build'
-
-    dependsOn: lint
-    condition: succeeded()
+  - job: Build
+    displayName: 'Build'
 
     pool:
       vmImage: 'ubuntu-latest'
@@ -27,7 +23,7 @@ jobs:
     - task: NodeTool@0
       displayName: 'Install Node'
       inputs:
-        versionSpec: '10.x'
+        versionSpec: '12.x'
 
     - task: Cache@2
       displayName: 'Check Cache'
@@ -51,12 +47,11 @@ jobs:
 
     - task: PublishPipelineArtifact@1
       displayName: 'Publish Release'
-      condition: succeeded()
       inputs:
         targetPath: '$(Build.SourcesDirectory)/jellyfin-apiclient-javascript.tgz'
         artifactName: 'jellyfin-apiclient-javascript'
 
-  - job: lint
+  - job: Lint
     displayName: 'Lint'
 
     pool:
@@ -66,7 +61,7 @@ jobs:
     - task: NodeTool@0
       displayName: 'Install Node'
       inputs:
-        versionSpec: '10.x'
+        versionSpec: '12.x'
 
     - task: Cache@2
       displayName: 'Check Cache'
@@ -82,8 +77,8 @@ jobs:
     - script: 'yarn run lint'
       displayName: 'Run ESLint'
 
-  - job: test
-    displayName: 'Tests'
+  - job: Test
+    displayName: 'Test'
 
     pool:
       vmImage: 'ubuntu-latest'
@@ -92,7 +87,7 @@ jobs:
     - task: NodeTool@0
       displayName: 'Install Node'
       inputs:
-        versionSpec: '10.x'
+        versionSpec: '12.x'
 
     - task: Cache@2
       displayName: 'Check Cache'
@@ -110,7 +105,6 @@ jobs:
 
     - task: PublishTestResults@2
       displayName: 'Publish Test Results'
-      condition: succeededOrFailed()
       inputs:
         testRunner: JUnit
         testResultsFiles: 'junit.xml'
@@ -121,6 +115,3 @@ jobs:
         codeCoverageTool: Cobertura
         summaryFileLocation: '$(System.DefaultWorkingDirectory)/coverage/cobertura-coverage.xml'
         reportDirectory: '$(System.DefaultWorkingDirectory)/coverage'
-
-
-
