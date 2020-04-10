@@ -2639,7 +2639,7 @@ class ApiClient {
     getUserViews(options = {}, userId) {
         const url = this.getUrl(`Users/${userId || this.getCurrentUserId()}/Views`, options);
 
-        return (json = this.getJSON(url));
+        return this.getJSON(url);
     }
 
     /**
