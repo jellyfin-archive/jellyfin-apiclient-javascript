@@ -101,7 +101,7 @@ function getLocalView(instance, serverId, userId) {
  * @param {String} clientName s
  * @param {String} applicationVersion
  */
-class ApiClientEx extends ApiClient {
+class ApiClientCore extends ApiClient {
     constructor(
         appStorage,
         serverAddress,
@@ -534,4 +534,4 @@ class ApiClientEx extends ApiClient {
     }
 }
 
-export default ApiClientEx;
+export default ApiClientCore;

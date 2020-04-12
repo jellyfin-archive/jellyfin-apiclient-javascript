@@ -377,27 +377,6 @@ export default class ConnectionManager {
             });
         }
 
-        function validateAuthentication(server, serverUrl) {
-            return ajax({
-                type: 'GET',
-                url: getEmbyServerUrl(serverUrl, 'System/Info'),
-                dataType: 'json',
-                headers: {
-                    'X-MediaBrowser-Token': server.AccessToken
-                }
-            }).then(
-                (systemInfo) => {
-                    updateServerInfo(server, systemInfo);
-                    return Promise.resolve();
-                },
-                () => {
-                    server.UserId = null;
-                    server.AccessToken = null;
-                    return Promise.resolve();
-                }
-            );
-        }
-
         function getImageUrl(localUser) {
             if (localUser && localUser.PrimaryImageTag) {
                 const apiClient = self.getApiClient(localUser);
@@ -767,7 +746,6 @@ export default class ConnectionManager {
             }
 
             address = normalizeAddress(address);
-            const instance = this;
 
             function onFail() {
                 console.log(`connectToAddress ${address} failed`);

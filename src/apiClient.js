@@ -418,11 +418,11 @@ class ApiClient {
         let user;
 
         const serverPromise = this.getUser(userId).then(
-            (user) => {
-                appStorage.setItem(`user-${user.Id}-${user.ServerId}`, JSON.stringify(user));
+            (userObject) => {
+                appStorage.setItem(`user-${userObject.Id}-${userObject.ServerId}`, JSON.stringify(userObject));
 
-                instance._currentUser = user;
-                return user;
+                instance._currentUser = userObject;
+                return userObject;
             },
             (response) => {
                 // if timed out, look for cached value
@@ -2324,8 +2324,6 @@ class ApiClient {
      * @param {String} newPassword
      */
     updateEasyPassword(userId, newPassword) {
-        const instance = this;
-
         if (!userId) {
             Promise.reject();
             return;
