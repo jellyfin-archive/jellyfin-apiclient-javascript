@@ -1,6 +1,6 @@
 ﻿function getCallbacks(obj, name) {
     if (!obj) {
-        throw new Error("obj cannot be null!");
+        throw new Error('obj cannot be null!');
     }
 
     obj._callbacks = obj._callbacks || {};
@@ -46,7 +46,7 @@ export default {
 
         const callbacks = getCallbacks(obj, eventName).slice(0);
 
-        callbacks.forEach(c => {
+        callbacks.forEach((c) => {
             c.apply(obj, eventArgs);
         });
     }

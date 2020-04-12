@@ -12,4 +12,4 @@ export default {
     ConnectionManager,
     Credentials,
     Events
-}
+};
