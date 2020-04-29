@@ -56,16 +56,15 @@ function fetchWithTimeout(url, options, timeoutMs) {
         options = options || {};
         options.credentials = 'same-origin';
 
-        fetch(url, options).then(
-            (response) => {
+        fetch(url, options)
+            .then((response) => {
                 clearTimeout(timeout);
                 resolve(response);
-            },
-            (error) => {
+            })
+            .catch((error) => {
                 clearTimeout(timeout);
                 reject(error);
-            }
-        );
+            });
     });
 }
 
@@ -217,12 +216,12 @@ class ApiClient {
      * @param {String} name
      * @param {Object} params
      */
-    getUrl(name, params) {
+    getUrl(name, params, serverAddress) {
         if (!name) {
             throw new Error('Url name cannot be empty');
         }
 
-        let url = this._serverAddress;
+        let url = serverAddress || this._serverAddress;
 
         if (!url) {
             throw new Error('serverAddress is yet not set');
@@ -250,8 +249,8 @@ class ApiClient {
         request.timeout = 30000;
         const instance = this;
 
-        return getFetchPromise(request).then(
-            (response) => {
+        return getFetchPromise(request)
+            .then((response) => {
                 instance.lastFetch = new Date().getTime();
 
                 if (response.status < 400) {
@@ -269,8 +268,8 @@ class ApiClient {
                     onFetchFail(instance, request.url, response);
                     return Promise.reject(response);
                 }
-            },
-            (error) => {
+            })
+            .catch((error) => {
                 if (error) {
                     console.log(`Request failed to ${request.url} ${error.toString()}`);
                 } else {
@@ -283,27 +282,25 @@ class ApiClient {
 
                     const previousServerAddress = instance.serverAddress();
 
-                    return tryReconnect(instance).then(
-                        () => {
+                    return tryReconnect(instance)
+                        .then(() => {
                             console.log('Reconnect succeesed');
                             request.url = request.url.replace(previousServerAddress, instance.serverAddress());
 
                             return instance.fetchWithFailover(request, false);
-                        },
-                        (innerError) => {
+                        })
+                        .catch((innerError) => {
                             console.log('Reconnect failed');
                             onFetchFail(instance, request.url, {});
                             throw innerError;
-                        }
-                    );
+                        });
                 } else {
                     console.log('Reporting request failure');
 
                     onFetchFail(instance, request.url, {});
                     throw error;
                 }
-            }
-        );
+            });
     }
 
     /**
@@ -324,8 +321,8 @@ class ApiClient {
             console.log(`Requesting url without automatic networking: ${request.url}`);
 
             const instance = this;
-            return getFetchPromise(request).then(
-                (response) => {
+            return getFetchPromise(request)
+                .then((response) => {
                     instance.lastFetch = new Date().getTime();
 
                     if (response.status < 400) {
@@ -343,12 +340,11 @@ class ApiClient {
                         onFetchFail(instance, request.url, response);
                         return Promise.reject(response);
                     }
-                },
-                (error) => {
+                })
+                .catch((error) => {
                     onFetchFail(instance, request.url, {});
                     throw error;
-                }
-            );
+                });
         }
 
         return this.fetchWithFailover(request, true);
@@ -417,14 +413,14 @@ class ApiClient {
         const instance = this;
         let user;
 
-        const serverPromise = this.getUser(userId).then(
-            (userObject) => {
+        const serverPromise = this.getUser(userId)
+            .then((userObject) => {
                 appStorage.setItem(`user-${userObject.Id}-${userObject.ServerId}`, JSON.stringify(userObject));
 
                 instance._currentUser = userObject;
                 return userObject;
-            },
-            (response) => {
+            })
+            .catch((response) => {
                 // if timed out, look for cached value
                 if (!response.status) {
                     if (userId && instance.accessToken()) {
@@ -436,8 +432,7 @@ class ApiClient {
                 }
 
                 throw response;
-            }
-        );
+            });
 
         if (!this.lastFetch && enableCache !== false) {
             user = getCachedUser(instance, userId);
@@ -499,7 +494,6 @@ class ApiClient {
         }
 
         const url = this.getUrl('Users/authenticatebyname');
-        const instance = this;
 
         return new Promise((resolve, reject) => {
             const postData = {
@@ -507,26 +501,28 @@ class ApiClient {
                 Pw: password || ''
             };
 
-            instance
-                .ajax({
-                    type: 'POST',
-                    url,
-                    data: JSON.stringify(postData),
-                    dataType: 'json',
-                    contentType: 'application/json'
-                })
+            this.ajax({
+                type: 'POST',
+                url: url,
+                data: JSON.stringify(postData),
+                dataType: 'json',
+                contentType: 'application/json'
+            })
                 .then((result) => {
                     const afterOnAuthenticated = () => {
-                        redetectBitrate(instance);
+                        redetectBitrate(this);
                         resolve(result);
                     };
 
-                    if (instance.onAuthenticated) {
-                        instance.onAuthenticated(instance, result).then(afterOnAuthenticated);
+                    if (this.onAuthenticated) {
+                        this.onAuthenticated(this, result).then(afterOnAuthenticated);
                     } else {
                         afterOnAuthenticated();
                     }
-                }, reject);
+                })
+                .catch(() => {
+                    throw new Error('authenticateUserByName: error authenticating with the server');
+                });
         });
     }
 

@@ -58,9 +58,6 @@ function updateServerInfo(server, systemInfo) {
     if (systemInfo.LocalAddress) {
         server.LocalAddress = systemInfo.LocalAddress;
     }
-    if (systemInfo.WanAddress) {
-        server.RemoteAddress = systemInfo.WanAddress;
-    }
 }
 
 function getEmbyServerUrl(baseUrl, handler) {
@@ -209,7 +206,7 @@ function compareVersions(a, b) {
 }
 
 export default class ConnectionManager {
-    constructor(credentialProvider, appStorage, appName, appVersion, deviceName, deviceId, capabilities) {
+    constructor(credentialProvider, appName, appVersion, deviceName, deviceId, capabilities) {
         console.log('Begin ConnectionManager constructor');
 
         const self = this;
@@ -377,6 +374,27 @@ export default class ConnectionManager {
             });
         }
 
+        function validateAuthentication(server, serverUrl) {
+            return ajax({
+                type: 'GET',
+                url: getEmbyServerUrl(serverUrl, 'System/Info'),
+                dataType: 'json',
+                headers: {
+                    'X-MediaBrowser-Token': server.AccessToken
+                }
+            }).then(
+                (systemInfo) => {
+                    updateServerInfo(server, systemInfo);
+                    return Promise.resolve();
+                },
+                () => {
+                    server.UserId = null;
+                    server.AccessToken = null;
+                    return Promise.resolve();
+                }
+            );
+        }
+
         function getImageUrl(localUser) {
             if (localUser && localUser.PrimaryImageTag) {
                 const apiClient = self.getApiClient(localUser);
@@ -418,13 +436,12 @@ export default class ConnectionManager {
                     }
                 }
 
-                if (!(apiClient && apiClient.getCurrentUserId())) {
+                if (apiClient && apiClient.getCurrentUserId()) {
                     onLocalUserDone();
                 }
             });
 
         self.logout = () => {
-            console.log('begin connectionManager loguot');
             const promises = [];
 
             for (let i = 0, length = self._apiClients.length; i < length; i++) {
