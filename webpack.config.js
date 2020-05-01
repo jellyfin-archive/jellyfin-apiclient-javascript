@@ -3,15 +3,15 @@ const path = require('path');
 var babelLoader = {
     loader: 'babel-loader',
     options: {
-        cacheDirectory: true,
+        cacheDirectory: true
     }
 };
 
 module.exports = {
     entry: {
-        'jellyfin-apiclient': 'index.js',
+        'jellyfin-apiclient': 'index.js'
     },
-    devtool: "source-map",
+    devtool: 'source-map',
     module: {
         rules: [
             {
@@ -27,18 +27,13 @@ module.exports = {
             {
                 test: /\.js$/,
                 exclude: /node_modules/,
-                use: [
-                    babelLoader
-                ]
+                use: [babelLoader]
             }
-        ],
+        ]
     },
     resolve: {
         extensions: ['.ts', '.js'],
-        modules: [
-            path.resolve(__dirname, 'node_modules'),
-            path.resolve(__dirname, 'src')
-        ]
+        modules: [path.resolve(__dirname, 'node_modules'), path.resolve(__dirname, 'src')]
     },
     output: {
         filename: '[name].js',
