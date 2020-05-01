@@ -1,6 +1,12 @@
 ﻿import events from './events';
 import appStorage from './appStorage';
 
+/** Report rate limits in ms for different events */
+const reportRateLimits = {
+    timeupdate: 10000,
+    volumechange: 3000
+};
+
 function redetectBitrate(instance) {
     stopBitrateDetection(instance);
 
@@ -102,6 +108,10 @@ function getFetchPromise(request) {
     }
 
     return fetchWithTimeout(request.url, fetchRequest, request.timeout);
+}
+
+function cancelReportPlaybackProgressPromise(instance) {
+    if (typeof instance.reportPlaybackProgressCancel === 'function') instance.reportPlaybackProgressCancel();
 }
 
 /**
@@ -2962,6 +2972,7 @@ class ApiClient {
         this.lastPlaybackProgressReportTicks = null;
         stopBitrateDetection(this);
 
+        cancelReportPlaybackProgressPromise(this);
         const url = this.getUrl('Sessions/Playing');
 
         return this.ajax({
@@ -2982,39 +2993,79 @@ class ApiClient {
             throw new Error('null options');
         }
 
+        const eventName = options.EventName || 'timeupdate';
+        let reportRateLimitTime = reportRateLimits[eventName] || 0;
+
+        const now = new Date().getTime();
+        const msSinceLastReport = now - (this.lastPlaybackProgressReport || 0);
         const newPositionTicks = options.PositionTicks;
 
-        if ((options.EventName || 'timeupdate') === 'timeupdate') {
-            const now = new Date().getTime();
-            const msSinceLastReport = now - (this.lastPlaybackProgressReport || 0);
-
-            if (msSinceLastReport <= 10000) {
-                if (!newPositionTicks) {
-                    return Promise.resolve();
-                }
-
-                const expectedReportTicks = msSinceLastReport * 10000 + (this.lastPlaybackProgressReportTicks || 0);
-
-                if (Math.abs((newPositionTicks || 0) - expectedReportTicks) < 5000 * 10000) {
-                    return Promise.resolve();
-                }
-            }
-
-            this.lastPlaybackProgressReport = now;
-        } else {
-            // allow the next timeupdate
-            this.lastPlaybackProgressReport = 0;
+        if (msSinceLastReport < reportRateLimitTime && eventName === 'timeupdate' && newPositionTicks) {
+            const expectedReportTicks = 1e4 * msSinceLastReport + (this.lastPlaybackProgressReportTicks || 0);
+            if (Math.abs(newPositionTicks - expectedReportTicks) >= 5e7) reportRateLimitTime = 0;
         }
 
-        this.lastPlaybackProgressReportTicks = newPositionTicks;
-        const url = this.getUrl('Sessions/Playing/Progress');
+        if (
+            reportRateLimitTime <
+            (this.reportPlaybackProgressTimeout !== undefined ? this.reportPlaybackProgressTimeout : 1e6)
+        ) {
+            cancelReportPlaybackProgressPromise(this);
+        }
 
-        return this.ajax({
-            type: 'POST',
-            data: JSON.stringify(options),
-            contentType: 'application/json',
-            url
-        });
+        this.lastPlaybackProgressOptions = options;
+
+        /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
+        if (this.reportPlaybackProgressPromise) return Promise.resolve();
+
+        let instance = this;
+        let promise;
+        let cancelled = false;
+
+        let resetPromise = function () {
+            if (instance.reportPlaybackProgressPromise !== promise) return;
+
+            delete instance.lastPlaybackProgressOptions;
+            delete instance.reportPlaybackProgressTimeout;
+            delete instance.reportPlaybackProgressPromise;
+            delete instance.reportPlaybackProgressCancel;
+        };
+
+        let sendReport = function (lastOptions) {
+            resetPromise();
+
+            if (!lastOptions) throw new Error('null options');
+
+            instance.lastPlaybackProgressReport = new Date().getTime();
+            instance.lastPlaybackProgressReportTicks = lastOptions.PositionTicks;
+
+            const url = instance.getUrl('Sessions/Playing/Progress');
+            return instance.ajax({
+                type: 'POST',
+                data: JSON.stringify(lastOptions),
+                contentType: 'application/json',
+                url: url
+            });
+        };
+
+        let delay = Math.max(0, reportRateLimitTime - msSinceLastReport);
+
+        promise = new Promise((resolve, reject) => setTimeout(resolve, delay))
+            .then(() => {
+                if (cancelled) return Promise.resolve();
+                return sendReport(instance.lastPlaybackProgressOptions);
+            })
+            .finally(() => {
+                resetPromise();
+            });
+
+        this.reportPlaybackProgressTimeout = reportRateLimitTime;
+        this.reportPlaybackProgressPromise = promise;
+        this.reportPlaybackProgressCancel = function () {
+            cancelled = true;
+            resetPromise();
+        };
+
+        return promise;
     }
 
     reportOfflineActions(actions) {
@@ -3102,6 +3153,7 @@ class ApiClient {
         this.lastPlaybackProgressReportTicks = null;
         redetectBitrate(this);
 
+        cancelReportPlaybackProgressPromise(this);
         const url = this.getUrl('Sessions/Playing/Stopped');
 
         return this.ajax({
