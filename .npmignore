@@ -2,3 +2,15 @@
 webpack.config.js
 yarn.lock
 src
+tests
+.ci
+.idea
+coverage
+junit.xml
+tsconfig.json
+.editorconfig
+.eslintignore
+.eslintrc.yml
+.prettierrc
+babel.config.js
+jest.config.js
