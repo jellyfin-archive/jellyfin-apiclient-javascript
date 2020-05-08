@@ -2031,6 +2031,68 @@ class ApiClient {
         });
     }
 
+    uploadItemSubtitle(itemId, language, isForced, file) {
+        if (!itemId) {
+            throw new Error('null itemId');
+        }
+
+        if (!language) {
+            throw new Error('null language');
+        }
+
+        if (!(typeof isForced === 'boolean')) {
+            throw new Error('Invalid isForced value.');
+        }
+
+        if (!file) {
+            throw new Error('File must be a subtitle file.');
+        }
+
+        const format = file.name.substring(file.name.lastIndexOf('.') + 1).toLowerCase();
+
+        if (!['sub', 'srt', 'vtt', 'ass', 'ssa'].includes(format)) {
+            throw new Error('Invalid subtitle format.');
+        }
+
+        let url = this.getUrl(`Videos/${itemId}/Subtitles`);
+
+        const instance = this;
+
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+
+            reader.onerror = () => {
+                reject();
+            };
+
+            reader.onabort = () => {
+                reject();
+            };
+
+            // Closure to capture the file information.
+            reader.onload = (e) => {
+                // Split by a comma to remove the url: prefix
+                const data = e.target.result.split(',')[1];
+
+                instance
+                    .ajax({
+                        type: 'POST',
+                        url,
+                        data: {
+                            language: language,
+                            format: format,
+                            isForced: isForced,
+                            data: data
+                        }
+                    })
+                    .then(resolve, reject);
+            };
+
+            // Read in the image file as a data URL.
+            reader.readAsDataURL(file);
+        });
+    }
+
     /**
      * Gets the list of installed plugins on the server
      */
