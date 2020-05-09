@@ -682,6 +682,19 @@ class ApiClient {
         return val.substring(val.indexOf('=') + 1).replace("'", '%27');
     }
 
+    /**
+     * Gets the server time as a UTC formatted string.
+     * @returns {Promise} Promise that it's fulfilled on request completion.
+     */
+    getServerTime() {
+        const url = this.getUrl('GetUTCTime');
+
+        return this.ajax({
+            type: 'GET',
+            url: url
+        });
+    }
+
     getDownloadSpeed(byteSize) {
         const url = this.getUrl('Playback/BitrateTest', {
             Size: byteSize
@@ -3242,6 +3255,30 @@ class ApiClient {
         });
     }
 
+    /**
+     * Sends a SyncPlay command.
+     * @param {String} sessionId The session that is making the request.
+     * @param {String} command The command to request.
+     * @param {Object} options Options to send along with the command.
+     * @returns {Promise} Promise that it's fulfilled on request completion.
+     */
+    sendSyncPlayCommand(sessionId, command, options) {
+        if (!sessionId) {
+            throw new Error("null sessionId");
+        }
+
+        if (!command) {
+            throw new Error("null command");
+        }
+
+        const url = this.getUrl(`SyncPlay/${sessionId}/${command}`, options || {});
+
+        return this.ajax({
+            type: 'POST',
+            url: url
+        });
+    }
+
     createPackageReview(review) {
         const url = this.getUrl(`Packages/Reviews/${review.id}`, review);
 
@@ -3455,9 +3492,41 @@ function onMessageReceivedInternal(instance, msg) {
         if (user.Id === instance.getCurrentUserId()) {
             instance._currentUser = null;
         }
+    } else if (msg.MessageType === 'KeepAlive') {
+        console.debug('Received KeepAlive from server.');
+    } else if (msg.MessageType === 'ForceKeepAlive') {
+        console.debug(`Received ForceKeepAlive from server. Timeout is ${msg.Data} seconds.`);
+        instance.sendWebSocketMessage('KeepAlive');
+        scheduleKeepAlive(instance, msg.Data);
     }
 
     events.trigger(instance, 'message', [msg]);
+}
+
+/**
+ * Starts a poller that sends KeepAlive messages using a WebSocket connection.
+ * @param {Object} instance The WebSocket connection.
+ * @param {number} timeout The number of seconds after which the WebSocket is considered lost by the server.
+ * @returns {number} The id of the interval.
+ */
+function scheduleKeepAlive(instance, timeout) {
+    clearKeepAlive(instance);
+    instance.keepAliveInterval = setInterval(() => {
+        instance.sendWebSocketMessage('KeepAlive');
+    }, timeout * 1000 * 0.5);
+    return instance.keepAliveInterval;
+}
+
+/**
+ * Stops the poller that is sending KeepAlive messages on a WebSocket connection.
+ * @param {Object} instance The WebSocket connection.
+ */
+function clearKeepAlive(instance) {
+    console.debug('Clearing KeepAlive for', instance);
+    if (instance.keepAliveInterval) {
+        clearInterval(instance.keepAliveInterval);
+        instance.keepAliveInterval = null;
+    }
 }
 
 function onWebSocketOpen() {
@@ -3468,6 +3537,7 @@ function onWebSocketOpen() {
 
 function onWebSocketError() {
     const instance = this;
+    clearKeepAlive(instance);
     events.trigger(instance, 'websocketerror');
 }
 
@@ -3475,6 +3545,7 @@ function setSocketOnClose(apiClient, socket) {
     socket.onclose = () => {
         console.log('web socket closed');
 
+        clearKeepAlive(socket);
         if (apiClient._webSocket === socket) {
             console.log('nulling out web socket');
             apiClient._webSocket = null;
