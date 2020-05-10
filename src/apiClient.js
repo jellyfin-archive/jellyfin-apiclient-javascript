@@ -2040,7 +2040,7 @@ class ApiClient {
             throw new Error('null language');
         }
 
-        if (!(typeof isForced === 'boolean')) {
+        if (typeof isForced !== 'boolean') {
             throw new Error('Invalid isForced value.');
         }
 
