@@ -164,11 +164,12 @@ function replaceAll(originalString, strReplace, strWith) {
 }
 
 function normalizeAddress(address) {
-    // attempt to correct bad input
+    // Attempt to correct bad input
     address = address.trim();
 
-    if (address.toLowerCase().indexOf('http') !== 0) {
-        address = `http://${address}`;
+    if (!address.toLowerCase().startsWith('http')) {
+        // Assume HTTPS for security
+        address = `https://${address}`;
     }
 
     // Seeing failures in iOS when protocol isn't lowercase
