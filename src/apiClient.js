@@ -1359,17 +1359,12 @@ class ApiClient {
     /**
      * Installs or updates a new plugin
      */
-    installPlugin(name, guid, updateClass, version) {
+    installPlugin(name, guid, version) {
         if (!name) {
             throw new Error('null name');
         }
 
-        if (!updateClass) {
-            throw new Error('null updateClass');
-        }
-
         const options = {
-            updateClass,
             AssemblyGuid: guid
         };
 
