@@ -3,6 +3,7 @@
  - [thornbill](https://github.com/thornbill)
  - [cvium](https://github.com/cvium)
  - [Oddstr13](https://github.com/oddstr13)
+ - [Andrei Oanca](https://github.com/OancaAndrei)
 
 # Emby Contributors
 
