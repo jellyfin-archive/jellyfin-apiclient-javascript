@@ -685,6 +685,7 @@ class ApiClient {
     /**
      * Gets the server time as a UTC formatted string.
      * @returns {Promise} Promise that it's fulfilled on request completion.
+     * @since 10.6.0
      */
     getServerTime() {
         const url = this.getUrl('GetUTCTime');
@@ -3261,6 +3262,7 @@ class ApiClient {
      * @param {String} command The command to request.
      * @param {Object} options Options to send along with the command.
      * @returns {Promise} Promise that it's fulfilled on request completion.
+     * @since 10.6.0
      */
     sendSyncPlayCommand(sessionId, command, options) {
         if (!sessionId) {
@@ -3508,6 +3510,7 @@ function onMessageReceivedInternal(instance, msg) {
  * @param {Object} instance The WebSocket connection.
  * @param {number} timeout The number of seconds after which the WebSocket is considered lost by the server.
  * @returns {number} The id of the interval.
+ * @since 10.6.0
  */
 function scheduleKeepAlive(instance, timeout) {
     clearKeepAlive(instance);
@@ -3520,6 +3523,7 @@ function scheduleKeepAlive(instance, timeout) {
 /**
  * Stops the poller that is sending KeepAlive messages on a WebSocket connection.
  * @param {Object} instance The WebSocket connection.
+ * @since 10.6.0
  */
 function clearKeepAlive(instance) {
     console.debug('Clearing KeepAlive for', instance);
