@@ -9,4 +9,5 @@ module.exports = {
         '^.+\\.ts?$': 'ts-jest',
         '^.+\\.js?$': 'ts-jest'
     },
+    setupFiles: ['./jest.setup.js']
 };

@@ -4,7 +4,7 @@ let client;
 
 beforeEach(() => {
     client = new apiClient(
-        'http://demo.jellyfin.org/stable',
+        'https://demo.jellyfin.org/stable',
         'Jellyfin Web',
         '10.5.0',
         'Firefox',
@@ -18,7 +18,7 @@ describe('ApiClient class', () => {
     });
 
     it('has the expected constructor', () => {
-        expect(client._serverAddress).toBe('http://demo.jellyfin.org/stable');
+        expect(client._serverAddress).toBe('https://demo.jellyfin.org/stable');
         expect(client._appName).toBe('Jellyfin Web');
         expect(client._appVersion).toBe('10.5.0');
         expect(client._deviceName).toBe('Firefox');
@@ -28,7 +28,7 @@ describe('ApiClient class', () => {
     });
 
     it('can get serverAddress', () => {
-        expect(client.serverAddress()).toBe('http://demo.jellyfin.org/stable');
+        expect(client.serverAddress()).toBe('https://demo.jellyfin.org/stable');
     });
 
     it('can get appName', () => {
@@ -56,17 +56,19 @@ describe('ApiClient class', () => {
     });
 
     it('can change server address', () => {
-        expect(client.serverAddress('http://demo.jellyfin.org/nightly')).toBe('http://demo.jellyfin.org/nightly');
+        expect(client.serverAddress('https://demo.jellyfin.org/nightly')).toBe('https://demo.jellyfin.org/nightly');
     });
 
-    it('can get a URL', () => {
-        expect(client.getUrl('/System/Info/Public')).toBe('http://demo.jellyfin.org/stable/System/Info/Public');
-    });
+    describe('getUrl()', () => {
+        it('can get a URL', () => {
+            expect(client.getUrl('/System/Info/Public')).toBe('https://demo.jellyfin.org/stable/System/Info/Public');
+        });
 
-    it('can throw error on getting an empty URL', () => {
-        expect(() => {
-            client.getUrl();
-        }).toThrow(Error);
+        it('can throw error on getting an empty URL', () => {
+            expect(() => {
+                client.getUrl();
+            }).toThrow(Error);
+        });
     });
 
     it('can set valid headers', () => {
@@ -77,6 +79,22 @@ describe('ApiClient class', () => {
         expect(headers).toStrictEqual({
             'X-Emby-Authorization':
                 'MediaBrowser Client="Jellyfin Web", Device="Firefox", DeviceId="TW96aWxsYS81LjAgKFgxMTsgTGludXggeDg2XzY0OyBydjo3NC4wKSBHZWNrby8yMDEwMDEwMSBGaXJlZm94Lzc0LjB8MTU4NDkwMTA5OTY3NQ11", Version="10.5.0"'
+        });
+    });
+
+    describe('authenticateUserByName()', () => {
+        it('can authenticate successfully', async () => {
+            const response = await client.authenticateUserByName('demo');
+            expect(response.User).toBeDefined();
+            expect(response.User.Name).toBe('demo');
+        });
+
+        it('will reject with no username', () => {
+            return expect(client.authenticateUserByName()).rejects.toBeUndefined();
+        });
+
+        it('will reject with invalid credentials', () => {
+            return expect(client.authenticateUserByName('apiclienttest', 'password')).rejects.toBeDefined();
         });
     });
 });
