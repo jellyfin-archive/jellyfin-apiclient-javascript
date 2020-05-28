@@ -318,7 +318,7 @@ class ApiClient {
      */
     fetch(request, includeAuthorization) {
         if (!request) {
-            throw new Error('Request cannot be null');
+            return Promise.reject('Request cannot be null');
         }
 
         request.headers = request.headers || {};
@@ -353,7 +353,7 @@ class ApiClient {
                 })
                 .catch((error) => {
                     onFetchFail(instance, request.url, {});
-                    throw error;
+                    return Promise.reject(error);
                 });
         }
 
@@ -400,7 +400,7 @@ class ApiClient {
      */
     ajax(request, includeAuthorization) {
         if (!request) {
-            throw new Error('Request cannot be null');
+            return Promise.reject('Request cannot be null');
         }
 
         return this.fetch(request, includeAuthorization);
@@ -530,9 +530,7 @@ class ApiClient {
                         afterOnAuthenticated();
                     }
                 })
-                .catch(() => {
-                    throw new Error('authenticateUserByName: error authenticating with the server');
-                });
+                .catch(reject);
         });
     }
 
