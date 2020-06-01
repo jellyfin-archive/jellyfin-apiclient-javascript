@@ -2033,19 +2033,19 @@ class ApiClient {
 
     uploadItemSubtitle(itemId, language, isForced, file) {
         if (!itemId) {
-            throw new Error('null itemId');
+            throw new SyntaxError('Missing itemId');
         }
 
         if (!language) {
-            throw new Error('null language');
+            throw new SyntaxError('Missing language');
         }
 
         if (typeof isForced !== 'boolean') {
-            throw new Error('Invalid isForced value.');
+            throw new TypeError('Parameter isForced must be a boolean.');
         }
 
         if (!file) {
-            throw new Error('File must be a subtitle file.');
+            throw new SyntaxError('File must be a subtitle file.');
         }
 
         const format = file.name.substring(file.name.lastIndexOf('.') + 1).toLowerCase();
@@ -2055,8 +2055,6 @@ class ApiClient {
         }
 
         let url = this.getUrl(`Videos/${itemId}/Subtitles`);
-
-        const instance = this;
 
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
@@ -2074,8 +2072,7 @@ class ApiClient {
                 // Split by a comma to remove the url: prefix
                 const data = e.target.result.split(',')[1];
 
-                instance
-                    .ajax({
+                this.ajax({
                         type: 'POST',
                         url,
                         data: {
