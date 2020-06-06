@@ -2465,7 +2465,7 @@ class ApiClient {
         return this.ajax({
             type: 'POST',
             url,
-            data: user,
+            data: JSON.stringify(user),
             contentType: 'application/json'
         });
     }
