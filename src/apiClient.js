@@ -2466,7 +2466,10 @@ class ApiClient {
             type: 'POST',
             url,
             data: JSON.stringify(user),
-            contentType: 'application/json'
+            contentType: 'application/json',
+            headers: {
+                accept: 'application/json'
+            }
         });
     }
 
