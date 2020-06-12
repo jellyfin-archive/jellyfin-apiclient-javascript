@@ -167,7 +167,10 @@ function normalizeAddress(address) {
     // Attempt to correct bad input
     address = address.trim();
 
-    if (!address.toLowerCase().startsWith('http')) {
+    if (/^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/.test(address)) {
+        // Assume HTTP for IP
+        address = `http://${address}`;
+    } else if (!address.toLowerCase().startsWith('http')) {
         // Assume HTTPS for security
         address = `https://${address}`;
     }
