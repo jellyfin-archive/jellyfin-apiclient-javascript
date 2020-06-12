@@ -167,11 +167,6 @@ function normalizeAddress(address) {
     // Attempt to correct bad input
     address = address.trim();
 
-    if (!address.toLowerCase().startsWith('http')) {
-        // Assume HTTPS for security
-        address = `https://${address}`;
-    }
-
     // Seeing failures in iOS when protocol isn't lowercase
     address = replaceAll(address, 'Http:', 'http:');
     address = replaceAll(address, 'Https:', 'https:');
@@ -635,12 +630,26 @@ export default class ConnectionManager {
                 addressesStrings.push(addresses[addresses.length - 1].url);
             }
             if (serverInfo.ManualAddress && addressesStrings.indexOf(serverInfo.ManualAddress) === -1) {
-                addresses.push({
-                    url: serverInfo.ManualAddress,
-                    mode: ConnectionMode.Manual,
-                    timeout: 100
+                const address = serverInfo.ManualAddress;
+
+                let urls = [];
+
+                if (/^[^:]+:\/\//.test(address)) {
+                    // Protocol specified - connect as is
+                    urls.push(address);
+                } else {
+                    urls.push(`https://${address}`);
+                    urls.push(`http://${address}`);
+                }
+
+                urls.forEach((url) => {
+                    addresses.push({
+                        url: url,
+                        mode: ConnectionMode.Manual,
+                        timeout: 100
+                    });
+                    addressesStrings.push(addresses[addresses.length - 1].url);
                 });
-                addressesStrings.push(addresses[addresses.length - 1].url);
             }
             if (
                 !serverInfo.manualAddressOnly &&
