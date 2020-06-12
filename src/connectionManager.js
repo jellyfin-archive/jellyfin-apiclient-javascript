@@ -167,11 +167,6 @@ function normalizeAddress(address) {
     // Attempt to correct bad input
     address = address.trim();
 
-    if (!address.toLowerCase().startsWith('http')) {
-        // Assume HTTPS for security
-        address = `https://${address}`;
-    }
-
     // Seeing failures in iOS when protocol isn't lowercase
     address = replaceAll(address, 'Http:', 'http:');
     address = replaceAll(address, 'Https:', 'https:');
@@ -758,6 +753,21 @@ export default class ConnectionManager {
             }
         }
 
+        function tryConnectToAddress(address, options) {
+            const server = {
+                ManualAddress: address,
+                LastConnectionMode: ConnectionMode.Manual
+            };
+
+            return self.connectToServer(server, options).then((result) => {
+                // connectToServer never rejects, but resolves with State='Unavailable'
+                if (result.State === 'Unavailable') {
+                    return Promise.reject();
+                }
+                return result;
+            });
+        }
+
         self.connectToAddress = function (address, options) {
             if (!address) {
                 return Promise.reject();
@@ -765,19 +775,31 @@ export default class ConnectionManager {
 
             address = normalizeAddress(address);
 
+            let urls = [];
+
+            if (/^[^:]+:\/\//.test(address)) {
+                // Protocol specified - connect as is
+                urls.push(address);
+            } else {
+                urls.push(`https://${address}`);
+                urls.push(`http://${address}`);
+            }
+
+            let i = 0;
+
             function onFail() {
-                console.log(`connectToAddress ${address} failed`);
+                console.log(`connectToAddress ${urls[i]} failed`);
+
+                if (++i < urls.length) {
+                    return tryConnectToAddress(urls[i], options).catch(onFail);
+                }
+
                 return Promise.resolve({
                     State: 'Unavailable'
                 });
             }
 
-            const server = {
-                ManualAddress: address,
-                LastConnectionMode: ConnectionMode.Manual
-            };
-
-            return self.connectToServer(server, options).catch(onFail);
+            return tryConnectToAddress(urls[i], options).catch(onFail);
         };
 
         self.deleteServer = (serverId) => {
