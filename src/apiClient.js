@@ -3254,17 +3254,12 @@ class ApiClient {
 
     /**
      * Sends a SyncPlay command.
-     * @param {String} sessionId The session that is making the request.
      * @param {String} command The command to request.
      * @param {Object} options Options to send along with the command.
      * @returns {Promise} Promise that it's fulfilled on request completion.
      * @since 10.6.0
      */
     sendSyncPlayCommand(command, options) {
-        if (!sessionId) {
-            throw new Error("null sessionId");
-        }
-
         if (!command) {
             throw new Error("null command");
         }
