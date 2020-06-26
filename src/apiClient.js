@@ -3260,7 +3260,7 @@ class ApiClient {
      * @returns {Promise} Promise that it's fulfilled on request completion.
      * @since 10.6.0
      */
-    sendSyncPlayCommand(sessionId, command, options) {
+    sendSyncPlayCommand(command, options) {
         if (!sessionId) {
             throw new Error("null sessionId");
         }
@@ -3269,7 +3269,7 @@ class ApiClient {
             throw new Error("null command");
         }
 
-        const url = this.getUrl(`SyncPlay/${sessionId}/${command}`, options || {});
+        const url = this.getUrl(`SyncPlay/${command}`, options || {});
 
         return this.ajax({
             type: 'POST',
