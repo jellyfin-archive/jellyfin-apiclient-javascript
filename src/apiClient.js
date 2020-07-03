@@ -3267,7 +3267,7 @@ class ApiClient {
         const url = this.getUrl(`SyncPlay/${command}`, options || {});
 
         return this.ajax({
-            type: 'POST',
+            type: 'GET',
             url: url
         });
     }
