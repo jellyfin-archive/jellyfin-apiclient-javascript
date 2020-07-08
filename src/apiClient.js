@@ -3359,7 +3359,7 @@ class ApiClient {
      * @since 10.6.0
      */
     requestSyncPlaySeek(options = {}) {
-        const url = this.getUrl(`SyncPlay/Pause`, options);
+        const url = this.getUrl(`SyncPlay/Seek`, options);
 
         return this.ajax({
             type: 'POST',
