@@ -3253,21 +3253,116 @@ class ApiClient {
     }
 
     /**
-     * Sends a SyncPlay command.
-     * @param {String} command The command to request.
-     * @param {Object} options Options to send along with the command.
-     * @returns {Promise} Promise that it's fulfilled on request completion.
+     * Gets a list of all the active SyncPlay groups from the server.
+     * @returns {Promise} A Promise that resolves to the list of active groups.
      * @since 10.6.0
      */
-    sendSyncPlayCommand(command, options) {
-        if (!command) {
-            throw new Error("null command");
-        }
-
-        const url = this.getUrl(`SyncPlay/${command}`, options || {});
+    getSyncPlayGroups() {
+        const url = this.getUrl(`SyncPlay/List`);
 
         return this.ajax({
             type: 'GET',
+            url: url
+        });
+    }
+
+    /**
+     * Creates a SyncPlay group on the server with the current client as member.
+     * @returns {Promise} A Promise fulfilled upon request completion.
+     * @since 10.6.0
+     */
+    createSyncPlayGroup() {
+        const url = this.getUrl(`SyncPlay/New`);
+
+        return this.ajax({
+            type: 'POST',
+            url: url
+        });
+    }
+
+    /**
+     * Joins the client to a given SyncPlay group on the server.
+     * @param {object} options Information about the SyncPlay group to join.
+     * @returns {Promise} A Promise fulfilled upon request completion.
+     * @since 10.6.0
+     */
+    joinSyncPlayGroup(options = {}) {
+        const url = this.getUrl(`SyncPlay/Join`, options);
+
+        return this.ajax({
+            type: 'POST',
+            url: url
+        });
+    }
+
+    /**
+     * Leaves the current SyncPlay group.
+     * @returns {Promise} A Promise fulfilled upon request completion.
+     * @since 10.6.0
+     */
+    leaveSyncPlayGroup() {
+        const url = this.getUrl(`SyncPlay/Leave`);
+
+        return this.ajax({
+            type: 'POST',
+            url: url
+        });
+    }
+
+    /**
+     * Sends a ping to the SyncPlay group on the server.
+     * @param {object} options Information about the ping
+     * @returns {Promise} A Promise fulfilled upon request completion.
+     * @since 10.6.0
+     */
+    sendSyncPlayPing(options = {}) {
+        const url = this.getUrl(`SyncPlay/Ping`, options);
+
+        return this.ajax({
+            type: 'POST',
+            url: url
+        });
+    }
+
+    /**
+     * Requests a playback start for the SyncPlay group
+     * @returns {Promise} A Promise fulfilled upon request completion.
+     * @since 10.6.0
+     */
+    requestSyncPlayStart() {
+        const url = this.getUrl(`SyncPlay/Play`);
+
+        return this.ajax({
+            type: 'POST',
+            url: url
+        });
+    }
+
+    /**
+     * Requests a playback pause for the SyncPlay group
+     * @returns {Promise} A Promise fulfilled upon request completion.
+     * @since 10.6.0
+     */
+    requestSyncPlayPause() {
+        const url = this.getUrl(`SyncPlay/Pause`);
+
+        return this.ajax({
+            type: 'POST',
+            url: url
+        });
+    }
+
+    /**
+     * Requests a playback seek for the SyncPlay group
+     * @param {object} options Object containing the requested seek position.
+     * @returns {Promise} A Promise fulfilled upon request completion.
+     * @since 10.6.0
+     */
+    requestSyncPlaySeek(options = {}) {
+        const url = this.getUrl(`SyncPlay/Seek`, options);
+
+        return this.ajax({
+            type: 'POST',
             url: url
         });
     }
