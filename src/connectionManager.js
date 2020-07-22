@@ -691,7 +691,7 @@ export default class ConnectionManager {
                             );
                             resolveFailure(self, resolve);
                         } else {
-                            onSuccessfulConnection(server, result, connectionMode, serverUrl, options, resolve);
+                            onSuccessfulConnection(server, result, connectionMode, serverUrl, true, resolve, options);
                         }
                     },
                     () => {
@@ -701,15 +701,15 @@ export default class ConnectionManager {
             });
         };
 
-        function onSuccessfulConnection(server, systemInfo, connectionMode, serverUrl, options={}, resolve) {
+        function onSuccessfulConnection(server, systemInfo, connectionMode, serverUrl, verifyLocalAuthentication, resolve, options={}) {
             const credentials = credentialProvider.credentials();
 
             if (options.enableAutoLogin === false) {
                 server.UserId = null;
                 server.AccessToken = null;
-            } else if (server.AccessToken && options.enableAutoLogin !== false) {
+            } else if (server.AccessToken) {
                 return void validateAuthentication(server, serverUrl).then(function () {
-                    onSuccessfulConnection(server, systemInfo, connectionMode, serverUrl, options, resolve);
+                    onSuccessfulConnection(server, systemInfo, connectionMode, serverUrl, false, resolve, options);
                 });
             }
 
