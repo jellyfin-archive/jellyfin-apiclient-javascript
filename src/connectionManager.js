@@ -707,7 +707,7 @@ export default class ConnectionManager {
             if (options.enableAutoLogin === false) {
                 server.UserId = null;
                 server.AccessToken = null;
-            } else if (server.AccessToken) {
+            } else if (server.AccessToken && verifyLocalAuthentication) {
                 return void validateAuthentication(server, serverUrl).then(function () {
                     onSuccessfulConnection(server, systemInfo, connectionMode, serverUrl, false, resolve, options);
                 });
