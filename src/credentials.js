@@ -1,14 +1,13 @@
 ﻿import events from './events';
 import appStorage from './appStorage';
 
-function ensure(instance, data) {
-    if (!instance._credentials) {
-        const json = instance.appStorage.getItem(instance.key) || '{}';
+function initialize(appStorage, key) {
+    const json = appStorage.getItem(key) || '{}';
 
-        console.log(`credentials initialized with: ${json}`);
-        instance._credentials = JSON.parse(json);
-        instance._credentials.Servers = instance._credentials.Servers || [];
-    }
+    console.log(`Stored JSON credentials: ${json}`);
+    let credentials = JSON.parse(json);
+    credentials.Servers = credentials.Servers || [];
+    return credentials;
 }
 
 function set(instance, data) {
@@ -26,6 +25,7 @@ export default class Credentials {
     constructor(key) {
         this.key = key || 'jellyfin_credentials';
         this.appStorage = appStorage;
+        this._credentials = initialize(this.appStorage, this.key);
     }
 
     clear() {
@@ -38,7 +38,6 @@ export default class Credentials {
             set(this, data);
         }
 
-        ensure(this);
         return this._credentials;
     }
 
