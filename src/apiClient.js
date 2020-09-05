@@ -1472,6 +1472,22 @@ class ApiClient {
     }
 
     /**
+     * Deletes the device from the devices list, forcing any active sessions
+     * to re-authenticate.
+     * @param {String} deviceId 
+     */
+    deleteDevice(deviceId) {
+        const url = this.getUrl('Devices', {
+            Id: deviceId
+        });
+
+        return this.ajax({
+            type: 'DELETE',
+            url
+        });
+    }
+
+    /**
      * Gets the current server configuration
      */
     getContentUploadHistory() {
