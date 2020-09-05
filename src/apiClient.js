@@ -2349,7 +2349,8 @@ class ApiClient {
             url,
             data: {
                 NewPw: newPassword
-            }
+            },
+            contentType: 'application/json'
         });
     }
 
