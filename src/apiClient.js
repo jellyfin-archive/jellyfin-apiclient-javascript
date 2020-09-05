@@ -534,6 +534,56 @@ class ApiClient {
         });
     }
 
+    /**
+     * Authenticates a user using quick connect
+     * @param {String} token
+     */
+    quickConnect(token) {
+        if (!token) {
+            return Promise.reject();
+        }
+
+        const url = this.getUrl('Users/AuthenticateWithQuickConnect');
+
+        return new Promise((resolve, reject) => {
+            const postData = {
+                Token: token
+            };
+
+            this.ajax({
+                type: 'POST',
+                url: url,
+                data: JSON.stringify(postData),
+                dataType: 'json',
+                contentType: 'application/json'
+            })
+                .then((result) => {
+                    const afterOnAuthenticated = () => {
+                        redetectBitrate(this);
+                        resolve(result);
+                    };
+
+                    if (this.onAuthenticated) {
+                        this.onAuthenticated(this, result).then(afterOnAuthenticated);
+                    } else {
+                        afterOnAuthenticated();
+                    }
+                })
+                .catch(() => {
+                    throw new Error('quickConnect: error authenticating with the server');
+                });
+        });
+    }
+
+    /**
+     * Retrieves quick connect information for the provided verb
+     * @param {String} verb
+     */
+    getQuickConnect(verb) {
+        var url = this.getUrl("/QuickConnect/" + verb);
+        return this.getJSON(url);
+    }
+
     ensureWebSocket() {
         if (this.isWebSocketOpenOrConnecting() || !this.isWebSocketSupported()) {
             return;
