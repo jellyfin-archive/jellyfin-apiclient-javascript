@@ -2104,6 +2104,65 @@ class ApiClient {
         });
     }
 
+    uploadItemSubtitle(itemId, language, isForced, file) {
+        if (!itemId) {
+            throw new SyntaxError('Missing itemId');
+        }
+
+        if (!language) {
+            throw new SyntaxError('Missing language');
+        }
+
+        if (typeof isForced !== 'boolean') {
+            throw new TypeError('Parameter isForced must be a boolean.');
+        }
+
+        if (!file) {
+            throw new SyntaxError('File must be a subtitle file.');
+        }
+
+        const format = file.name.substring(file.name.lastIndexOf('.') + 1).toLowerCase();
+
+        if (!['sub', 'srt', 'vtt', 'ass', 'ssa'].includes(format)) {
+            throw new Error('Invalid subtitle format.');
+        }
+
+        let url = this.getUrl(`Videos/${itemId}/Subtitles`);
+
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+
+            reader.onerror = () => {
+                reject();
+            };
+
+            reader.onabort = () => {
+                reject();
+            };
+
+            // Closure to capture the file information.
+            reader.onload = (e) => {
+                // Split by a comma to remove the url: prefix
+                const data = e.target.result.split(',')[1];
+
+                this.ajax({
+                        type: 'POST',
+                        url,
+                        data: {
+                            language: language,
+                            format: format,
+                            isForced: isForced,
+                            data: data
+                        }
+                    })
+                    .then(resolve, reject);
+            };
+
+            // Read in the image file as a data URL.
+            reader.readAsDataURL(file);
+        });
+    }
+
     /**
      * Gets the list of installed plugins on the server
      */
