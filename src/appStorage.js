@@ -17,7 +17,7 @@ function onCacheOpened(result) {
 class AppStore {
     constructor() {
         try {
-            if (self.caches) {
+            if (self && self.caches) {
                 caches.open('embydata').then(onCacheOpened.bind(this));
             }
         } catch (err) {
