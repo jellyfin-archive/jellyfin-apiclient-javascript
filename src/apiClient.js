@@ -3872,7 +3872,7 @@ function getRemoteImagePrefix(instance, options) {
 }
 
 function normalizeImageOptions(instance, options) {
-    let ratio = window.devicePixelRatio || 1;
+    let ratio = window && window.devicePixelRatio || 1;
 
     if (ratio) {
         if (options.minScale) {

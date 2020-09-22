@@ -524,7 +524,7 @@ export default class ConnectionManager {
                     resolve(servers);
                 };
 
-                if (window.NativeShell && typeof window.NativeShell.findServers === 'function') {
+                if (window && window.NativeShell && typeof window.NativeShell.findServers === 'function') {
                     window.NativeShell.findServers(1e3).then(onFinish, function () {
                         onFinish([]);
                     });
