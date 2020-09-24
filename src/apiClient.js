@@ -1524,7 +1524,7 @@ class ApiClient {
     /**
      * Deletes the device from the devices list, forcing any active sessions
      * to re-authenticate.
-     * @param {String} deviceId 
+     * @param {String} deviceId
      */
     deleteDevice(deviceId) {
         const url = this.getUrl('Devices', {
@@ -3394,11 +3394,12 @@ class ApiClient {
 
     /**
      * Creates a SyncPlay group on the server with the current client as member.
+     * @param {object} options Settings for the SyncPlay group to create.
      * @returns {Promise} A Promise fulfilled upon request completion.
      * @since 10.6.0
      */
-    createSyncPlayGroup() {
-        const url = this.getUrl(`SyncPlay/New`);
+    createSyncPlayGroup(options = {}) {
+        const url = this.getUrl(`SyncPlay/New`, options);
 
         return this.ajax({
             type: 'POST',
@@ -3451,12 +3452,87 @@ class ApiClient {
     }
 
     /**
-     * Requests a playback start for the SyncPlay group
+     * Requests a playback play for the SyncPlay group
+     * @param {object} options Options about the new playlist.
      * @returns {Promise} A Promise fulfilled upon request completion.
-     * @since 10.6.0
+     * @since 10.7.0
      */
-    requestSyncPlayStart() {
-        const url = this.getUrl(`SyncPlay/Play`);
+    requestSyncPlayPlay(options = {}) {
+        const url = this.getUrl(`SyncPlay/Play`, options);
+
+        return this.ajax({
+            type: 'POST',
+            url: url
+        });
+    }
+
+    /**
+     * Requests to change playing item in the SyncPlay group
+     * @param {object} options Options about the new playing item.
+     * @returns {Promise} A Promise fulfilled upon request completion.
+     * @since 10.7.0
+     */
+    requestSyncPlaySetPlaylistItem(options = {}) {
+        const url = this.getUrl(`SyncPlay/SetPlaylistItem`, options);
+
+        return this.ajax({
+            type: 'POST',
+            url: url
+        });
+    }
+
+    /**
+     * Requests to remove items from the playlist of the SyncPlay group
+     * @param {object} options Options about the items to remove.
+     * @returns {Promise} A Promise fulfilled upon request completion.
+     * @since 10.7.0
+     */
+    requestSyncPlayRemoveFromPlaylist(options = {}) {
+        const url = this.getUrl(`SyncPlay/RemoveFromPlaylist`, options);
+
+        return this.ajax({
+            type: 'POST',
+            url: url
+        });
+    }
+
+    /**
+     * Requests to move an item in the playlist of the SyncPlay group
+     * @param {object} options Options about the item to move.
+     * @returns {Promise} A Promise fulfilled upon request completion.
+     * @since 10.7.0
+     */
+    requestSyncPlayMovePlaylistItem(options = {}) {
+        const url = this.getUrl(`SyncPlay/MovePlaylistItem`, options);
+
+        return this.ajax({
+            type: 'POST',
+            url: url
+        });
+    }
+
+    /**
+     * Requests to queue items in the playlist of the SyncPlay group
+     * @param {object} options Options about the new items.
+     * @returns {Promise} A Promise fulfilled upon request completion.
+     * @since 10.7.0
+     */
+    requestSyncPlayQueue(options = {}) {
+        const url = this.getUrl(`SyncPlay/Queue`, options);
+
+        return this.ajax({
+            type: 'POST',
+            url: url
+        });
+    }
+
+    /**
+     * Requests a playback unpause for the SyncPlay group
+     * @returns {Promise} A Promise fulfilled upon request completion.
+     * @since 10.7.0
+     */
+    requestSyncPlayUnpause() {
+        const url = this.getUrl(`SyncPlay/Unpause`);
 
         return this.ajax({
             type: 'POST',
@@ -3486,6 +3562,96 @@ class ApiClient {
      */
     requestSyncPlaySeek(options = {}) {
         const url = this.getUrl(`SyncPlay/Seek`, options);
+
+        return this.ajax({
+            type: 'POST',
+            url: url
+        });
+    }
+
+    /**
+     * Requests the next track for the SyncPlay group
+     * @param {object} options Options about the current playlist.
+     * @returns {Promise} A Promise fulfilled upon request completion.
+     * @since 10.7.0
+     */
+    requestSyncPlayNextTrack(options = {}) {
+        const url = this.getUrl(`SyncPlay/NextTrack`, options);
+
+        return this.ajax({
+            type: 'POST',
+            url: url
+        });
+    }
+
+    /**
+     * Requests the previous track for the SyncPlay group
+     * @param {object} options Options about the current playlist.
+     * @returns {Promise} A Promise fulfilled upon request completion.
+     * @since 10.7.0
+     */
+    requestSyncPlayPreviousTrack(options = {}) {
+        const url = this.getUrl(`SyncPlay/PreviousTrack`, options);
+
+        return this.ajax({
+            type: 'POST',
+            url: url
+        });
+    }
+
+    /**
+     * Requests to change repeat mode for the SyncPlay group
+     * @param {object} options Options about the repeat mode.
+     * @returns {Promise} A Promise fulfilled upon request completion.
+     * @since 10.7.0
+     */
+    requestSyncPlaySetRepeatMode(options = {}) {
+        const url = this.getUrl(`SyncPlay/SetRepeatMode`, options);
+
+        return this.ajax({
+            type: 'POST',
+            url: url
+        });
+    }
+
+    /**
+     * Requests to change shuffle mode for the SyncPlay group
+     * @param {object} options Options about the shuffle mode.
+     * @returns {Promise} A Promise fulfilled upon request completion.
+     * @since 10.7.0
+     */
+    requestSyncPlaySetShuffleMode(options = {}) {
+        const url = this.getUrl(`SyncPlay/SetShuffleMode`, options);
+
+        return this.ajax({
+            type: 'POST',
+            url: url
+        });
+    }
+
+    /**
+     * Notifies the server about this client's buffering status
+     * @param {object} options Object containing the buffering status.
+     * @returns {Promise} A Promise fulfilled upon request completion.
+     * @since 10.7.0
+     */
+    requestSyncPlayBuffering(options = {}) {
+        const url = this.getUrl(`SyncPlay/Buffering`, options);
+
+        return this.ajax({
+            type: 'POST',
+            url: url
+        });
+    }
+
+    /**
+     * Requests to change this client's ignore-wait state
+     * @param {object} options Options about the ignore-wait state.
+     * @returns {Promise} A Promise fulfilled upon request completion.
+     * @since 10.7.0
+     */
+    requestSyncPlaySetIgnoreWait(options = {}) {
+        const url = this.getUrl(`SyncPlay/SetIgnoreWait`, options);
 
         return this.ajax({
             type: 'POST',
