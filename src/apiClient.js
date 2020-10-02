@@ -3738,6 +3738,23 @@ class ApiClient {
         });
     }
 
+    /**
+     * Requests to send a WebRTC related message in SyncPlay group.
+     * @param {object} message The message to send.
+     * @returns {Promise} A Promise fulfilled upon request completion.
+     * @since 10.7.0
+     */
+    requestSyncPlayWebRTC(options = {}) {
+        const url = this.getUrl(`SyncPlay/WebRTC`);
+
+        return this.ajax({
+            type: 'POST',
+            url: url,
+            data: JSON.stringify(options),
+            contentType: 'application/json'
+        });
+    }
+
     createPackageReview(review) {
         const url = this.getUrl(`Packages/Reviews/${review.id}`, review);
 
