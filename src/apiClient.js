@@ -3399,11 +3399,13 @@ class ApiClient {
      * @since 10.6.0
      */
     createSyncPlayGroup(options = {}) {
-        const url = this.getUrl(`SyncPlay/New`, options);
+        const url = this.getUrl(`SyncPlay/New`);
 
         return this.ajax({
             type: 'POST',
-            url: url
+            url: url,
+            data: JSON.stringify(options),
+            contentType: 'application/json'
         });
     }
 
@@ -3414,11 +3416,13 @@ class ApiClient {
      * @since 10.6.0
      */
     joinSyncPlayGroup(options = {}) {
-        const url = this.getUrl(`SyncPlay/Join`, options);
+        const url = this.getUrl(`SyncPlay/Join`);
 
         return this.ajax({
             type: 'POST',
-            url: url
+            url: url,
+            data: JSON.stringify(options),
+            contentType: 'application/json'
         });
     }
 
@@ -3443,11 +3447,13 @@ class ApiClient {
      * @since 10.6.0
      */
     sendSyncPlayPing(options = {}) {
-        const url = this.getUrl(`SyncPlay/Ping`, options);
+        const url = this.getUrl(`SyncPlay/Ping`);
 
         return this.ajax({
             type: 'POST',
-            url: url
+            url: url,
+            data: JSON.stringify(options),
+            contentType: 'application/json'
         });
     }
 
@@ -3458,11 +3464,13 @@ class ApiClient {
      * @since 10.7.0
      */
     requestSyncPlayPlay(options = {}) {
-        const url = this.getUrl(`SyncPlay/Play`, options);
+        const url = this.getUrl(`SyncPlay/Play`);
 
         return this.ajax({
             type: 'POST',
-            url: url
+            url: url,
+            data: JSON.stringify(options),
+            contentType: 'application/json'
         });
     }
 
@@ -3473,11 +3481,13 @@ class ApiClient {
      * @since 10.7.0
      */
     requestSyncPlaySetPlaylistItem(options = {}) {
-        const url = this.getUrl(`SyncPlay/SetPlaylistItem`, options);
+        const url = this.getUrl(`SyncPlay/SetPlaylistItem`);
 
         return this.ajax({
             type: 'POST',
-            url: url
+            url: url,
+            data: JSON.stringify(options),
+            contentType: 'application/json'
         });
     }
 
@@ -3488,11 +3498,13 @@ class ApiClient {
      * @since 10.7.0
      */
     requestSyncPlayRemoveFromPlaylist(options = {}) {
-        const url = this.getUrl(`SyncPlay/RemoveFromPlaylist`, options);
+        const url = this.getUrl(`SyncPlay/RemoveFromPlaylist`);
 
         return this.ajax({
             type: 'POST',
-            url: url
+            url: url,
+            data: JSON.stringify(options),
+            contentType: 'application/json'
         });
     }
 
@@ -3503,11 +3515,13 @@ class ApiClient {
      * @since 10.7.0
      */
     requestSyncPlayMovePlaylistItem(options = {}) {
-        const url = this.getUrl(`SyncPlay/MovePlaylistItem`, options);
+        const url = this.getUrl(`SyncPlay/MovePlaylistItem`);
 
         return this.ajax({
             type: 'POST',
-            url: url
+            url: url,
+            data: JSON.stringify(options),
+            contentType: 'application/json'
         });
     }
 
@@ -3518,11 +3532,13 @@ class ApiClient {
      * @since 10.7.0
      */
     requestSyncPlayQueue(options = {}) {
-        const url = this.getUrl(`SyncPlay/Queue`, options);
+        const url = this.getUrl(`SyncPlay/Queue`);
 
         return this.ajax({
             type: 'POST',
-            url: url
+            url: url,
+            data: JSON.stringify(options),
+            contentType: 'application/json'
         });
     }
 
@@ -3561,11 +3577,13 @@ class ApiClient {
      * @since 10.6.0
      */
     requestSyncPlaySeek(options = {}) {
-        const url = this.getUrl(`SyncPlay/Seek`, options);
+        const url = this.getUrl(`SyncPlay/Seek`);
 
         return this.ajax({
             type: 'POST',
-            url: url
+            url: url,
+            data: JSON.stringify(options),
+            contentType: 'application/json'
         });
     }
 
@@ -3576,11 +3594,13 @@ class ApiClient {
      * @since 10.7.0
      */
     requestSyncPlayNextTrack(options = {}) {
-        const url = this.getUrl(`SyncPlay/NextTrack`, options);
+        const url = this.getUrl(`SyncPlay/NextTrack`);
 
         return this.ajax({
             type: 'POST',
-            url: url
+            url: url,
+            data: JSON.stringify(options),
+            contentType: 'application/json'
         });
     }
 
@@ -3591,11 +3611,13 @@ class ApiClient {
      * @since 10.7.0
      */
     requestSyncPlayPreviousTrack(options = {}) {
-        const url = this.getUrl(`SyncPlay/PreviousTrack`, options);
+        const url = this.getUrl(`SyncPlay/PreviousTrack`);
 
         return this.ajax({
             type: 'POST',
-            url: url
+            url: url,
+            data: JSON.stringify(options),
+            contentType: 'application/json'
         });
     }
 
@@ -3606,11 +3628,13 @@ class ApiClient {
      * @since 10.7.0
      */
     requestSyncPlaySetRepeatMode(options = {}) {
-        const url = this.getUrl(`SyncPlay/SetRepeatMode`, options);
+        const url = this.getUrl(`SyncPlay/SetRepeatMode`);
 
         return this.ajax({
             type: 'POST',
-            url: url
+            url: url,
+            data: JSON.stringify(options),
+            contentType: 'application/json'
         });
     }
 
@@ -3621,26 +3645,47 @@ class ApiClient {
      * @since 10.7.0
      */
     requestSyncPlaySetShuffleMode(options = {}) {
-        const url = this.getUrl(`SyncPlay/SetShuffleMode`, options);
+        const url = this.getUrl(`SyncPlay/SetShuffleMode`);
 
         return this.ajax({
             type: 'POST',
-            url: url
+            url: url,
+            data: JSON.stringify(options),
+            contentType: 'application/json'
         });
     }
 
     /**
-     * Notifies the server about this client's buffering status
-     * @param {object} options Object containing the buffering status.
+     * Notifies the server that this client is buffering.
+     * @param {object} options The player status.
      * @returns {Promise} A Promise fulfilled upon request completion.
      * @since 10.7.0
      */
     requestSyncPlayBuffering(options = {}) {
-        const url = this.getUrl(`SyncPlay/Buffering`, options);
+        const url = this.getUrl(`SyncPlay/Buffering`);
 
         return this.ajax({
             type: 'POST',
-            url: url
+            url: url,
+            data: JSON.stringify(options),
+            contentType: 'application/json'
+        });
+    }
+
+    /**
+     * Notifies the server that this client is ready for playback.
+     * @param {object} options The player status.
+     * @returns {Promise} A Promise fulfilled upon request completion.
+     * @since 10.7.0
+     */
+    requestSyncPlayReady(options = {}) {
+        const url = this.getUrl(`SyncPlay/Ready`);
+
+        return this.ajax({
+            type: 'POST',
+            url: url,
+            data: JSON.stringify(options),
+            contentType: 'application/json'
         });
     }
 
@@ -3651,11 +3696,13 @@ class ApiClient {
      * @since 10.7.0
      */
     requestSyncPlaySetIgnoreWait(options = {}) {
-        const url = this.getUrl(`SyncPlay/SetIgnoreWait`, options);
+        const url = this.getUrl(`SyncPlay/SetIgnoreWait`);
 
         return this.ajax({
             type: 'POST',
-            url: url
+            url: url,
+            data: JSON.stringify(options),
+            contentType: 'application/json'
         });
     }
 
