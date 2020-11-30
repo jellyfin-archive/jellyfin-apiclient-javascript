@@ -2148,12 +2148,13 @@ class ApiClient {
                 this.ajax({
                         type: 'POST',
                         url,
-                        data: {
+                        contentType: 'application/json',
+                        data: JSON.stringify({
                             language: language,
                             format: format,
                             isForced: isForced,
                             data: data
-                        }
+                        })
                     })
                     .then(resolve, reject);
             };
