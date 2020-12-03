@@ -3458,13 +3458,13 @@ class ApiClient {
     }
 
     /**
-     * Requests a playback play for the SyncPlay group
+     * Requests to set a new playlist for the SyncPlay group.
      * @param {object} options Options about the new playlist.
      * @returns {Promise} A Promise fulfilled upon request completion.
      * @since 10.7.0
      */
-    requestSyncPlayPlay(options = {}) {
-        const url = this.getUrl(`SyncPlay/Play`);
+    requestSyncPlaySetNewQueue(options = {}) {
+        const url = this.getUrl(`SyncPlay/SetNewQueue`);
 
         return this.ajax({
             type: 'POST',
@@ -3475,7 +3475,7 @@ class ApiClient {
     }
 
     /**
-     * Requests to change playing item in the SyncPlay group
+     * Requests to change playing item in the SyncPlay group.
      * @param {object} options Options about the new playing item.
      * @returns {Promise} A Promise fulfilled upon request completion.
      * @since 10.7.0
@@ -3492,7 +3492,7 @@ class ApiClient {
     }
 
     /**
-     * Requests to remove items from the playlist of the SyncPlay group
+     * Requests to remove items from the playlist of the SyncPlay group.
      * @param {object} options Options about the items to remove.
      * @returns {Promise} A Promise fulfilled upon request completion.
      * @since 10.7.0
@@ -3509,7 +3509,7 @@ class ApiClient {
     }
 
     /**
-     * Requests to move an item in the playlist of the SyncPlay group
+     * Requests to move an item in the playlist of the SyncPlay group.
      * @param {object} options Options about the item to move.
      * @returns {Promise} A Promise fulfilled upon request completion.
      * @since 10.7.0
@@ -3526,7 +3526,7 @@ class ApiClient {
     }
 
     /**
-     * Requests to queue items in the playlist of the SyncPlay group
+     * Requests to queue items in the playlist of the SyncPlay group.
      * @param {object} options Options about the new items.
      * @returns {Promise} A Promise fulfilled upon request completion.
      * @since 10.7.0
@@ -3543,7 +3543,7 @@ class ApiClient {
     }
 
     /**
-     * Requests a playback unpause for the SyncPlay group
+     * Requests a playback unpause for the SyncPlay group.
      * @returns {Promise} A Promise fulfilled upon request completion.
      * @since 10.7.0
      */
@@ -3557,7 +3557,7 @@ class ApiClient {
     }
 
     /**
-     * Requests a playback pause for the SyncPlay group
+     * Requests a playback pause for the SyncPlay group.
      * @returns {Promise} A Promise fulfilled upon request completion.
      * @since 10.6.0
      */
@@ -3571,7 +3571,7 @@ class ApiClient {
     }
 
     /**
-     * Requests a playback seek for the SyncPlay group
+     * Requests a playback seek for the SyncPlay group.
      * @param {object} options Object containing the requested seek position.
      * @returns {Promise} A Promise fulfilled upon request completion.
      * @since 10.6.0
@@ -3588,13 +3588,13 @@ class ApiClient {
     }
 
     /**
-     * Requests the next track for the SyncPlay group
+     * Requests the next item for the SyncPlay group.
      * @param {object} options Options about the current playlist.
      * @returns {Promise} A Promise fulfilled upon request completion.
      * @since 10.7.0
      */
-    requestSyncPlayNextTrack(options = {}) {
-        const url = this.getUrl(`SyncPlay/NextTrack`);
+    requestSyncPlayNextItem(options = {}) {
+        const url = this.getUrl(`SyncPlay/NextItem`);
 
         return this.ajax({
             type: 'POST',
@@ -3605,13 +3605,13 @@ class ApiClient {
     }
 
     /**
-     * Requests the previous track for the SyncPlay group
+     * Requests the previous item for the SyncPlay group.
      * @param {object} options Options about the current playlist.
      * @returns {Promise} A Promise fulfilled upon request completion.
      * @since 10.7.0
      */
-    requestSyncPlayPreviousTrack(options = {}) {
-        const url = this.getUrl(`SyncPlay/PreviousTrack`);
+    requestSyncPlayPreviousItem(options = {}) {
+        const url = this.getUrl(`SyncPlay/PreviousItem`);
 
         return this.ajax({
             type: 'POST',
@@ -3622,7 +3622,7 @@ class ApiClient {
     }
 
     /**
-     * Requests to change repeat mode for the SyncPlay group
+     * Requests to change repeat mode for the SyncPlay group.
      * @param {object} options Options about the repeat mode.
      * @returns {Promise} A Promise fulfilled upon request completion.
      * @since 10.7.0
@@ -3639,7 +3639,7 @@ class ApiClient {
     }
 
     /**
-     * Requests to change shuffle mode for the SyncPlay group
+     * Requests to change shuffle mode for the SyncPlay group.
      * @param {object} options Options about the shuffle mode.
      * @returns {Promise} A Promise fulfilled upon request completion.
      * @since 10.7.0
@@ -3690,7 +3690,7 @@ class ApiClient {
     }
 
     /**
-     * Requests to change this client's ignore-wait state
+     * Requests to change this client's ignore-wait state.
      * @param {object} options Options about the ignore-wait state.
      * @returns {Promise} A Promise fulfilled upon request completion.
      * @since 10.7.0
