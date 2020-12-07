@@ -3429,15 +3429,18 @@ class ApiClient {
 
     /**
      * Leaves the current SyncPlay group.
+     * @param {object} options Information about the SyncPlay group to leave.
      * @returns {Promise} A Promise fulfilled upon request completion.
      * @since 10.6.0
      */
-    leaveSyncPlayGroup() {
+    leaveSyncPlayGroup(options = {}) {
         const url = this.getUrl(`SyncPlay/Leave`);
 
         return this.ajax({
             type: 'POST',
-            url: url
+            url: url,
+            data: JSON.stringify(options),
+            contentType: 'application/json'
         });
     }
 
