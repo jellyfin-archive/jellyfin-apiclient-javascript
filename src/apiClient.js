@@ -1644,7 +1644,25 @@ class ApiClient {
      * @param {String} Id
      * @param {String} Version
      */
-    uninstallPlugin(id, version) {
+    uninstallPlugin(id) {
+        if (!id) {
+            throw new Error('null Id');
+        }
+
+        const url = this.getUrl(`Plugins/${id}`);
+
+        return this.ajax({
+            type: 'DELETE',
+            url
+        });
+    }
+
+    /**
+     * Uninstalls a plugin
+     * @param {String} Id
+     * @param {String} Version
+     */
+    uninstallPluginByVersion(id, version) {
         if (!id) {
             throw new Error('null Id');
         }
