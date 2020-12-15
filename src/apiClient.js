@@ -1642,7 +1642,6 @@ class ApiClient {
     /**
      * Uninstalls a plugin
      * @param {String} Id
-     * @param {String} Version
      */
     uninstallPlugin(id) {
         if (!id) {
