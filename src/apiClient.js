@@ -2513,7 +2513,8 @@ class ApiClient {
             url,
             data: JSON.stringify({
                 resetPassword: true
-            })
+            }),
+            contentType: 'application/json'
         });
     }
 
