@@ -1,4 +1,4 @@
-﻿import events from './events';
+import events from './events';
 import appStorage from './appStorage';
 
 /** Report rate limits in ms for different events */
@@ -1652,6 +1652,72 @@ class ApiClient {
 
         return this.ajax({
             type: 'DELETE',
+            url
+        });
+    }
+
+    /**
+     * Uninstalls a plugin
+     * @param {String} Id
+     * @param {String} Version
+     */
+    uninstallPluginByVersion(id, version) {
+        if (!id) {
+            throw new Error('null Id');
+        }
+
+        if (!version) {
+            throw new Error('null Version');
+        }
+
+        const url = this.getUrl(`Plugins/${id}/${version}`);
+
+        return this.ajax({
+            type: 'DELETE',
+            url
+        });
+    }
+
+    /**
+     * Enables a plugin
+     * @param {String} Id
+     * @param {String} Version
+     */
+    enablePlugin(id, version) {
+        if (!id) {
+            throw new Error('null Id');
+        }
+
+        if (!version) {
+            throw new Error('null Id');
+        }
+
+        const url = this.getUrl(`Plugins/${id}/${version}/Enable`);
+
+        return this.ajax({
+            type: 'POST',
+            url
+        });
+    }
+
+    /**
+     * Disables a plugin
+     * @param {String} Id
+     * @param {String} Version
+     */
+    disablePlugin(id, version) {
+        if (!id) {
+            throw new Error('null Id');
+        }
+
+        if (!version) {
+            throw new Error('null Version');
+        }
+
+        const url = this.getUrl(`Plugins/${id}/${version}/Disable`);
+
+        return this.ajax({
+            type: 'POST',
             url
         });
     }
