@@ -2473,9 +2473,9 @@ class ApiClient {
         return this.ajax({
             type: 'POST',
             url,
-            data: {
+            data: JSON.stringify({
                 NewPw: newPassword
-            },
+            }),
             contentType: 'application/json'
         });
     }
@@ -2491,14 +2491,13 @@ class ApiClient {
 
         const url = this.getUrl(`Users/${userId}/Password`);
 
-        const postData = {};
-
-        postData.resetPassword = true;
-
         return this.ajax({
             type: 'POST',
             url,
-            data: postData
+            data: JSON.stringify({
+                resetPassword: true
+            }),
+            contentType: 'application/json'
         });
     }
 
@@ -2509,14 +2508,13 @@ class ApiClient {
 
         const url = this.getUrl(`Users/${userId}/EasyPassword`);
 
-        const postData = {};
-
-        postData.resetPassword = true;
-
         return this.ajax({
             type: 'POST',
             url,
-            data: postData
+            data: JSON.stringify({
+                resetPassword: true
+            }),
+            contentType: 'application/json'
         });
     }
 
