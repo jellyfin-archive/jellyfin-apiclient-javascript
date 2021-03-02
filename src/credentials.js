@@ -1,5 +1,37 @@
 ﻿import events from './events';
 import appStorage from './appStorage';
+import cookies from 'js-cookie';
+
+function readSession(key, server) {
+    const value = cookies.get(`${key}-${server.Id}`);
+
+    if (value) {
+        try {
+            const { UserId, AccessToken } = JSON.parse(value);
+            server.UserId = UserId || server.UserId;
+            server.AccessToken = AccessToken || server.AccessToken;
+        } catch (e) {
+            console.error(e);
+        }
+    }
+}
+
+function saveSession(key, server) {
+    cookies.set(`${key}-${server.Id}`, JSON.stringify({
+        UserId: server.UserId,
+        AccessToken: server.AccessToken
+    }));
+}
+
+function removeSession(key) {
+    const prefix = `${key}-`;
+
+    for (const cookie in cookies.get()) {
+        if (cookie.startsWith(prefix)) {
+            cookies.remove(cookie);
+        }
+    }
+}
 
 function initialize(appStorage, key) {
     const json = appStorage.getItem(key) || '{}';
@@ -7,13 +39,38 @@ function initialize(appStorage, key) {
     console.log(`Stored JSON credentials: ${json}`);
     let credentials = JSON.parse(json);
     credentials.Servers = credentials.Servers || [];
+
+    for (const server of credentials.Servers) {
+        readSession(key, server);
+    }
+
     return credentials;
 }
 
 function set(instance, data) {
     if (data) {
         instance._credentials = data;
-        instance.appStorage.setItem(instance.key, JSON.stringify(data));
+
+        const dataCopy = JSON.parse(JSON.stringify(data));
+
+        // Remove session data so we don't leave removed servers
+        removeSession(instance.key);
+
+        for (const server of dataCopy.Servers || []) {
+            if (server.UserId && server.AccessToken) {
+                saveSession(instance.key, server);
+            } else {
+                delete server.EnableAutoLogin;
+            }
+
+            if (!server.EnableAutoLogin) {
+                delete server.UserId;
+                delete server.AccessToken;
+                delete server.EnableAutoLogin;
+            }
+        }
+
+        instance.appStorage.setItem(instance.key, JSON.stringify(dataCopy));
     } else {
         instance.clear();
     }
@@ -29,6 +86,7 @@ export default class Credentials {
     }
 
     clear() {
+        removeSession(this.key);
         this._credentials = null;
         this.appStorage.removeItem(this.key);
     }
@@ -57,6 +115,7 @@ export default class Credentials {
             if (server.AccessToken) {
                 existing.AccessToken = server.AccessToken;
                 existing.UserId = server.UserId;
+                existing.EnableAutoLogin = server.EnableAutoLogin;
             }
             if (server.ExchangeToken) {
                 existing.ExchangeToken = server.ExchangeToken;

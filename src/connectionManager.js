@@ -261,7 +261,7 @@ export default class ConnectionManager {
 
             apiClient.serverInfo(existingServer);
 
-            apiClient.onAuthenticated = (instance, result) => onAuthenticated(instance, result, {}, true);
+            apiClient.onAuthenticated = (instance, result) => onAuthenticated(instance, result, {enableAutoLogin: result.enableAutoLogin}, true);
 
             if (!existingServers.length) {
                 const credentials = credentialProvider.credentials();
@@ -291,7 +291,7 @@ export default class ConnectionManager {
                 apiClient.serverInfo(server);
 
                 apiClient.onAuthenticated = (instance, result) => {
-                    return onAuthenticated(instance, result, {}, true);
+                    return onAuthenticated(instance, result, {enableAutoLogin: result.enableAutoLogin}, true);
                 };
 
                 events.trigger(self, 'apiclientcreated', [apiClient]);
@@ -332,6 +332,9 @@ export default class ConnectionManager {
                 server.UserId = null;
                 server.AccessToken = null;
             }
+
+            // set to true to store authentication data
+            server.EnableAutoLogin = !!options.enableAutoLogin;
 
             credentialProvider.addOrUpdateServer(credentials.Servers, server);
             credentialProvider.credentials(credentials);
@@ -460,6 +463,8 @@ export default class ConnectionManager {
                     server.AccessToken = null;
                     server.ExchangeToken = null;
                 }
+
+                credentialProvider.credentials(credentials);
             });
         };
 
