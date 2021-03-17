@@ -2389,8 +2389,10 @@ class ApiClient {
      * Options supports the following properties:
      * width - download the image at a fixed width
      * height - download the image at a fixed height
-     * maxWidth - download the image at a maxWidth
-     * maxHeight - download the image at a maxHeight
+     * maxWidth - download the image at a maxWidth (touch box on the inside)
+     * maxHeight - download the image at a maxHeight (touch box on the inside)
+     * fillWidth - scale the image down to fill a fillWidth wide box (touch box on the outside)
+     * fillHeight - scale the image down to fill a fillHeight high box (touch box on the outside)
      * quality - A scale of 0-100. This should almost always be omitted as the default will suffice.
      * For best results do not specify both width and height together, as aspect ratio might be altered.
      */
@@ -2425,8 +2427,10 @@ class ApiClient {
      * index - When downloading a backdrop, use this to specify which one (omitting is equivalent to zero)
      * width - download the image at a fixed width
      * height - download the image at a fixed height
-     * maxWidth - download the image at a maxWidth
-     * maxHeight - download the image at a maxHeight
+     * maxWidth - download the image at a maxWidth (touch box on the inside)
+     * maxHeight - download the image at a maxHeight (touch box on the inside)
+     * fillWidth - scale the image down to fill a fillWidth wide box (touch box on the outside)
+     * fillHeight - scale the image down to fill a fillHeight high box (touch box on the outside)
      * quality - A scale of 0-100. This should almost always be omitted as the default will suffice.
      * For best results do not specify both width and height together, as aspect ratio might be altered.
      */
@@ -4168,6 +4172,12 @@ function normalizeImageOptions(instance, options) {
         }
         if (options.maxHeight) {
             options.maxHeight = Math.round(options.maxHeight * ratio);
+        }
+        if (options.fillWidth) {
+            options.fillWidth = Math.round(options.fillWidth * ratio);
+        }
+        if (options.fillHeight) {
+            options.fillHeight = Math.round(options.fillHeight * ratio);
         }
     }
 
