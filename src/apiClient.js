@@ -3412,18 +3412,13 @@ class ApiClient {
         if (!options) {
             throw new Error('null options');
         }
+        
+        const url = this.getUrl(`Sessions/${sessionId}/Message`, options || {});
 
-        const url = this.getUrl(`Sessions/${sessionId}/Message`);
-
-        const ajaxOptions = {
+        return this.ajax({
             type: 'POST',
             url
-        };
-
-        ajaxOptions.data = JSON.stringify(options);
-        ajaxOptions.contentType = 'application/json';
-
-        return this.ajax(ajaxOptions);
+        });
     }
 
     sendPlayStateCommand(sessionId, command, options) {
