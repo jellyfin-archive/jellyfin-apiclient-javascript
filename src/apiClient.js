@@ -4016,7 +4016,7 @@ function scheduleKeepAlive(instance, timeout) {
  * @since 10.6.0
  */
 function clearKeepAlive(instance) {
-    console.debug('Clearing KeepAlive for', instance);
+    console.debug('Clearing KeepAlive for', instance._webSocket);
     if (instance.keepAliveInterval) {
         clearInterval(instance.keepAliveInterval);
         instance.keepAliveInterval = null;
@@ -4039,7 +4039,7 @@ function setSocketOnClose(apiClient, socket) {
     socket.onclose = () => {
         console.log('web socket closed');
 
-        clearKeepAlive(socket);
+        clearKeepAlive(apiClient);
         if (apiClient._webSocket === socket) {
             console.log('nulling out web socket');
             apiClient._webSocket = null;
