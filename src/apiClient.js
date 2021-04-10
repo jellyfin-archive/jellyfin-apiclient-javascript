@@ -459,14 +459,7 @@ class ApiClient {
     }
 
     isLoggedIn() {
-        const info = this.serverInfo();
-        if (info) {
-            if (info.UserId && info.AccessToken) {
-                return true;
-            }
-        }
-
-        return false;
+        return !!this._serverInfo.UserId && !!this._serverInfo.AccessToken;
     }
 
     /**
