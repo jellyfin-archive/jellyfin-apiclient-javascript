@@ -370,7 +370,11 @@ class ApiClient {
 
     serverInfo(info) {
         if (info) {
-            this._serverInfo = info;
+            this._serverInfo = Object.assign({}, info);
+
+            // Clear credentials - we need to verify and set them using `setAuthenticationInfo`
+            this._serverInfo.AccessToken = null;
+            this._serverInfo.UserId = null;
         }
 
         return this._serverInfo;
