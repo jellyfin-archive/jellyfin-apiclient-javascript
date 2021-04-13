@@ -4001,29 +4001,29 @@ function onMessageReceivedInternal(instance, msg) {
 
 /**
  * Starts a poller that sends KeepAlive messages using a WebSocket connection.
- * @param {Object} instance The WebSocket connection.
+ * @param {Object} apiClient The ApiClient instance.
  * @param {number} timeout The number of seconds after which the WebSocket is considered lost by the server.
  * @returns {number} The id of the interval.
  * @since 10.6.0
  */
-function scheduleKeepAlive(instance, timeout) {
-    clearKeepAlive(instance);
-    instance.keepAliveInterval = setInterval(() => {
-        instance.sendWebSocketMessage('KeepAlive');
+function scheduleKeepAlive(apiClient, timeout) {
+    clearKeepAlive(apiClient);
+    apiClient.keepAliveInterval = setInterval(() => {
+        apiClient.sendWebSocketMessage('KeepAlive');
     }, timeout * 1000 * 0.5);
-    return instance.keepAliveInterval;
+    return apiClient.keepAliveInterval;
 }
 
 /**
  * Stops the poller that is sending KeepAlive messages on a WebSocket connection.
- * @param {Object} instance The WebSocket connection.
+ * @param {Object} apiClient The ApiClient instance.
  * @since 10.6.0
  */
-function clearKeepAlive(instance) {
-    console.debug('Clearing KeepAlive for', instance);
-    if (instance.keepAliveInterval) {
-        clearInterval(instance.keepAliveInterval);
-        instance.keepAliveInterval = null;
+function clearKeepAlive(apiClient) {
+    console.debug('Clearing KeepAlive for', apiClient._webSocket);
+    if (apiClient.keepAliveInterval) {
+        clearInterval(apiClient.keepAliveInterval);
+        apiClient.keepAliveInterval = null;
     }
 }
 
@@ -4043,7 +4043,7 @@ function setSocketOnClose(apiClient, socket) {
     socket.onclose = () => {
         console.log('web socket closed');
 
-        clearKeepAlive(socket);
+        clearKeepAlive(apiClient);
         if (apiClient._webSocket === socket) {
             console.log('nulling out web socket');
             apiClient._webSocket = null;
