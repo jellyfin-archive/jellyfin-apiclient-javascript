@@ -3023,15 +3023,7 @@ class ApiClient {
     }
 
     getDateParamValue(date) {
-        function formatDigit(i) {
-            return i < 10 ? `0${i}` : i;
-        }
-
-        const d = date;
-
-        return `${d.getFullYear()}${formatDigit(d.getMonth() + 1)}${formatDigit(d.getDate())}${formatDigit(
-            d.getHours()
-        )}${formatDigit(d.getMinutes())}${formatDigit(d.getSeconds())}`;
+        return date.toISOString();
     }
 
     markPlayed(userId, itemId, date) {
