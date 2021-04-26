@@ -340,6 +340,7 @@ export default class ConnectionManager {
             apiClient.enableAutomaticBitrateDetection = options.enableAutomaticBitrateDetection;
 
             apiClient.serverInfo(server);
+            apiClient.setAuthenticationInfo(result.AccessToken, result.User.Id);
             afterConnected(apiClient, options);
 
             return onLocalUserSignIn(server, apiClient.serverAddress(), result.User);
@@ -739,6 +740,7 @@ export default class ConnectionManager {
             result.ApiClient.enableAutomaticBitrateDetection = options.enableAutomaticBitrateDetection;
 
             result.ApiClient.updateServerInfo(server, serverUrl);
+            result.ApiClient.setAuthenticationInfo(server.AccessToken, server.UserId);
 
             const resolveActions = function () {
                 resolve(result);

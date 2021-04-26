@@ -138,6 +138,7 @@ class ApiClient {
         this._deviceName = deviceName;
         this._appName = appName;
         this._appVersion = appVersion;
+        this._loggedIn = false;
     }
 
     appName() {
@@ -363,6 +364,8 @@ class ApiClient {
     setAuthenticationInfo(accessKey, userId) {
         this._currentUser = null;
 
+        this._loggedIn = !!userId && !!accessKey;
+
         this._serverInfo.AccessToken = accessKey;
         this._serverInfo.UserId = userId;
         redetectBitrate(this);
@@ -380,10 +383,12 @@ class ApiClient {
      * Gets or sets the current user id.
      */
     getCurrentUserId() {
+        if (!this._loggedIn) return null;
         return this._serverInfo.UserId;
     }
 
     accessToken() {
+        if (!this._loggedIn) return null;
         return this._serverInfo.AccessToken;
     }
 
@@ -455,14 +460,7 @@ class ApiClient {
     }
 
     isLoggedIn() {
-        const info = this.serverInfo();
-        if (info) {
-            if (info.UserId && info.AccessToken) {
-                return true;
-            }
-        }
-
-        return false;
+        return this._loggedIn;
     }
 
     /**
