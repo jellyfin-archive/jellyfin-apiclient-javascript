@@ -4,10 +4,5 @@ module.exports = {
     coverageReporters: [
         "cobertura",
     ],
-    moduleFileExtensions: ['ts', 'js'],
-    transform: {
-        '^.+\\.ts?$': 'ts-jest',
-        '^.+\\.js?$': 'ts-jest'
-    },
     setupFiles: ['./jest.setup.js']
 };
