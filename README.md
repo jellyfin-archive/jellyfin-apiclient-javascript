@@ -24,7 +24,7 @@
 </a>
 </p>
 
-This library is meant to help clients written in JavaScript or TypeScript interact with Jellyfin's REST API.
+This library is meant to help clients written in JavaScript interact with Jellyfin's REST API.
 
 ## Compatibility
 

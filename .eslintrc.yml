@@ -2,8 +2,6 @@ env:
   es6: true
   browser: true
 
-parser: '@typescript-eslint/parser'
-
 extends:
   - "eslint:recommended"
   - "plugin:promise/recommended"
@@ -26,27 +24,12 @@ parserOptions:
 overrides:
   - files:
       - "src/**/*.js"
-      - "src/**/*.ts"
-    extends:
-      - "plugin:import/typescript"
-      - 'plugin:@typescript-eslint/eslint-recommended'
-      - 'plugin:@typescript-eslint/recommended'
-      - 'plugin:@typescript-eslint/recommended-requiring-type-checking'
-    parserOptions:
-      tsconfigRootDir: '.'
-      project: ['./tsconfig.json']
-    plugins:
-      - '@typescript-eslint'
     rules:
       no-var: ["warn"]
       no-undef: ["warn"]
       prefer-rest-params: ["warn"]
       prefer-const: ["warn"]
-      "@typescript-eslint/camelcase": ["warn"]
-      "@typescript-eslint/no-use-before-define": ["warn"]
-      "@typescript-eslint/no-this-alias": ["warn"]
-      "@typescript-eslint/prefer-string-starts-ends-with": ["warn"]
-      "@typescript-eslint/prefer-includes": ["warn"]
+      no-unused-vars: ["warn"]
   - files:
       "tests/**/*.js"
     env:

@@ -15,16 +15,6 @@ module.exports = {
     module: {
         rules: [
             {
-                test: /\.ts(x?)$/,
-                exclude: /node_modules/,
-                use: [
-                    babelLoader,
-                    {
-                        loader: 'ts-loader'
-                    }
-                ]
-            },
-            {
                 test: /\.js$/,
                 exclude: /node_modules/,
                 use: [babelLoader]
@@ -32,7 +22,7 @@ module.exports = {
         ]
     },
     resolve: {
-        extensions: ['.ts', '.js'],
+        extensions: ['.js'],
         modules: [path.resolve(__dirname, 'node_modules'), path.resolve(__dirname, 'src')]
     },
     output: {

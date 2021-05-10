@@ -1,4 +1,4 @@
-import events from './events';
+﻿import events from './events';
 import appStorage from './appStorage';
 
 /** Report rate limits in ms for different events */
@@ -3209,7 +3209,6 @@ class ApiClient {
 
         this.lastPlaybackProgressOptions = options;
 
-        /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
         if (this.reportPlaybackProgressPromise) return Promise.resolve();
 
         let instance = this;
