@@ -54,5 +54,8 @@
   "bugs": {
     "url": "https://github.com/jellyfin/jellyfin-apiclient-javascript/issues"
   },
-  "homepage": "https://github.com/jellyfin/jellyfin-apiclient-javascript#readme"
+  "homepage": "https://github.com/jellyfin/jellyfin-apiclient-javascript#readme",
+  "engines": {
+    "yarn": "YARN NO LONGER USED - use npm instead."
+  }
 }
