@@ -495,8 +495,9 @@ class ApiClient {
      * Authenticates a user
      * @param {String} name
      * @param {String} password
+     * @param {String} rememberMe
      */
-    authenticateUserByName(name, password) {
+    authenticateUserByName(name, password, rememberMe) {
         if (!name) {
             return Promise.reject();
         }
@@ -523,6 +524,7 @@ class ApiClient {
                     };
 
                     if (this.onAuthenticated) {
+                        result.enableAutoLogin = rememberMe;
                         this.onAuthenticated(this, result).then(afterOnAuthenticated);
                     } else {
                         afterOnAuthenticated();
@@ -535,8 +537,9 @@ class ApiClient {
     /**
      * Authenticates a user using quick connect
      * @param {String} token
+     * @param {String} rememberMe
      */
-    quickConnect(token) {
+    quickConnect(token, rememberMe) {
         if (!token) {
             return Promise.reject();
         }
@@ -562,6 +565,7 @@ class ApiClient {
                     };
 
                     if (this.onAuthenticated) {
+                        result.enableAutoLogin = rememberMe;
                         this.onAuthenticated(this, result).then(afterOnAuthenticated);
                     } else {
                         afterOnAuthenticated();
