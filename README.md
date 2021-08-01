@@ -34,7 +34,7 @@ This library depends on the Fetch and Promise APIs. These will be expected to be
 
 ### Dependencies
 
-- Yarn
+- npm
 
 ### Getting Started
 
@@ -48,21 +48,21 @@ This library depends on the Fetch and Promise APIs. These will be expected to be
 2. Install build dependencies in the project directory
 
     ```sh
-    yarn install
+    npm install
     ```
 
 3. Build the library for production
 
     ```sh
-    yarn build
+    npm run build
     ```
 
 4. Build the library for development
 
     ```sh
-    yarn dev
+    npm run dev
     ```
 
 ## Building Documentation
 
-This library is documented using [JSDoc](https://jsdoc.app/) style comments. Documentation can be generated in HTML format by running `yarn docs` and viewing the files in any modern browser. The resulting documentation will be saved in the `docs` directory.
+This library is documented using [JSDoc](https://jsdoc.app/) style comments. Documentation can be generated in HTML format by running `npm run docs` and viewing the files in any modern browser. The resulting documentation will be saved in the `docs` directory.
