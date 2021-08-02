@@ -34,7 +34,7 @@ This library depends on the Fetch and Promise APIs. These will be expected to be
 
 ### Dependencies
 
-- npm
+- npm 6
 
 ### Getting Started
 
