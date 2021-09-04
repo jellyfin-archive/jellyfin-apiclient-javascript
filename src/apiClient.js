@@ -534,10 +534,10 @@ class ApiClient {
 
     /**
      * Authenticates a user using quick connect
-     * @param {String} token
+     * @param {String} secret The secret from the request.
      */
-    quickConnect(token) {
-        if (!token) {
+    quickConnect(secret) {
+        if (!secret) {
             return Promise.reject();
         }
 
@@ -545,7 +545,7 @@ class ApiClient {
 
         return new Promise((resolve, reject) => {
             const postData = {
-                Token: token
+                Secret: secret
             };
 
             this.ajax({
