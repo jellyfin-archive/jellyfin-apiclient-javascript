@@ -49,7 +49,7 @@
     "type": "git",
     "url": "git+https://github.com/jellyfin/jellyfin-apiclient-javascript.git"
   },
-  "author": "",
+  "author": "Jellyfin Contributors (https://github.com/jellyfin/jellyfin-apiclient-javascript/graphs/contributors)",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/jellyfin/jellyfin-apiclient-javascript/issues"
