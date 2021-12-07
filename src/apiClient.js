@@ -295,7 +295,7 @@ class ApiClient {
 
                     return tryReconnect(instance)
                         .then(() => {
-                            console.log('Reconnect succeesed');
+                            console.log('Reconnect succeeded');
                             request.url = request.url.replace(previousServerAddress, instance.serverAddress());
 
                             return instance.fetchWithFailover(request, false);
