@@ -9,7 +9,7 @@
     "@babel/preset-env": "^7.9.6",
     "babel-jest": "^27.0.2",
     "babel-loader": "^8.0.5",
-    "eslint": "^7.26.0",
+    "eslint": "^8.5.0",
     "eslint-plugin-import": "^2.20.2",
     "eslint-plugin-jest": "^25.0.1",
     "eslint-plugin-promise": "^6.0.0",
