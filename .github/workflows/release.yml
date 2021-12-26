@@ -1,4 +1,4 @@
-name: Build and publish to NPM
+name: Release 📦
 
 on:
   release:
@@ -6,10 +6,12 @@ on:
 
 jobs:
   build:
+    name: Publish to npmjs
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2.4.0
+    - name: Checkout
+      uses: actions/checkout@v2.4.0
       with:
         ref: 'master'
 
