@@ -2105,7 +2105,7 @@ class ApiClient {
                         type: 'POST',
                         url,
                         data,
-                        contentType: `image/${file.name.substring(file.name.lastIndexOf('.') + 1)}`
+                        contentType: file.type
                     })
                     .then(resolve, reject);
             };
@@ -2158,7 +2158,7 @@ class ApiClient {
                         type: 'POST',
                         url,
                         data,
-                        contentType: `image/${file.name.substring(file.name.lastIndexOf('.') + 1)}`
+                        contentType: file.type
                     })
                     .then(resolve, reject);
             };
