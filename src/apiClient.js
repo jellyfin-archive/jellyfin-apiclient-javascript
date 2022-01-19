@@ -3254,7 +3254,7 @@ class ApiClient {
         const msSinceLastReport = now - (this.lastPlaybackProgressReport || 0);
         const newPositionTicks = options.PositionTicks;
 
-        if (msSinceLastReport < reportRateLimitTime && eventName === 'timeupdate' && newPositionTicks) {
+        if (msSinceLastReport < reportRateLimitTime && eventName === 'timeupdate' && newPositionTicks != null) {
             const expectedReportTicks = 1e4 * msSinceLastReport + (this.lastPlaybackProgressReportTicks || 0);
             if (Math.abs(newPositionTicks - expectedReportTicks) >= 5e7) reportRateLimitTime = 0;
         }
