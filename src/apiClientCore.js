@@ -34,7 +34,7 @@ function startsWith(str, find) {
 
 function stripStart(str, find) {
     if (startsWith(str, find)) {
-        return str.substr(find.length);
+        return str.slice(find.length);
     }
 
     return str;
