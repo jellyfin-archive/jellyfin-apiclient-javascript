@@ -1596,6 +1596,24 @@ class ApiClient {
         return this.getJSON(url);
     }
 
+    getHomeScreenSection(sectionKey, options) {
+        const url = this.getUrl('HomeScreen/Section/' + sectionKey, options);
+
+        return this.getJSON(url);
+    }
+
+    getHomeScreenSections(options) {
+        const url = this.getUrl('HomeScreen/Sections', options);
+
+        return this.getJSON(url);
+    }
+
+    getPluginUserPages() {
+        const url = this.getUrl('PluginPages/User');
+
+        return this.getJSON(url);
+    };
+
     /**
      * Stops a scheduled task
      */
