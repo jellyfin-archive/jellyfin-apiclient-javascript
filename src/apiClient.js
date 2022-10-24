@@ -9,6 +9,8 @@ const reportRateLimits = {
 
 /** Maximum bitrate (Int32) */
 const MAX_BITRATE = 2147483647;
+/** Approximate LAN bitrate */
+const LAN_BITRATE = 140000000;
 
 function redetectBitrate(instance) {
     stopBitrateDetection(instance);
@@ -4092,13 +4094,6 @@ function detectBitrateInternal(instance, tests, index, currentBitrate) {
 }
 
 function detectBitrateWithEndpointInfo(instance, endpointInfo) {
-    if (endpointInfo.IsInNetwork) {
-        const result = 140000000;
-        instance.lastDetectedBitrate = result;
-        instance.lastDetectedBitrateTime = new Date().getTime();
-        return result;
-    }
-
     return detectBitrateInternal(
         instance,
         [
@@ -4116,7 +4111,15 @@ function detectBitrateWithEndpointInfo(instance, endpointInfo) {
             }
         ],
         0
-    );
+    ).then((result) => {
+        if (endpointInfo.IsInNetwork) {
+            result = Math.max(result || 0, LAN_BITRATE);
+
+            instance.lastDetectedBitrate = result;
+            instance.lastDetectedBitrateTime = new Date().getTime();
+        }
+        return result;
+    });
 }
 
 function getRemoteImagePrefix(instance, options) {
