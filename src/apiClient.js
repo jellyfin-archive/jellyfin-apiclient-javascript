@@ -18,11 +18,13 @@ function redetectBitrate(instance) {
     stopBitrateDetection(instance);
 
     if (instance.accessToken() && instance.enableAutomaticBitrateDetection !== false) {
-        setTimeout(redetectBitrateInternal.bind(instance), 6000);
+        instance.detectTimeout = setTimeout(redetectBitrateInternal.bind(instance), 6000);
     }
 }
 
 function redetectBitrateInternal() {
+    this.detectTimeout = null;
+
     if (this.accessToken()) {
         this.detectBitrate();
     }
@@ -31,6 +33,7 @@ function redetectBitrateInternal() {
 function stopBitrateDetection(instance) {
     if (instance.detectTimeout) {
         clearTimeout(instance.detectTimeout);
+        instance.detectTimeout = null;
     }
 }
 
