@@ -731,6 +731,7 @@ export default class ConnectionManager {
             result.ApiClient = self._getOrAddApiClient(server, serverUrl);
 
             result.ApiClient.setSystemInfo(systemInfo);
+            result.SystemInfo = systemInfo;
 
             result.State = server.AccessToken && options.enableAutoLogin !== false ? 'SignedIn' : 'ServerSignIn';
 
