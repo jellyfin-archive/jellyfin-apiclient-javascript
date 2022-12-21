@@ -7,6 +7,8 @@ const reportRateLimits = {
     volumechange: 3000
 };
 
+const idsPerItemRequestLimit = 25;
+
 function redetectBitrate(instance) {
     stopBitrateDetection(instance);
 
@@ -2805,6 +2807,11 @@ class ApiClient {
     getItems(userId, options) {
         let url;
 
+        // if there are a lot of ids, split the getItems call up into multiple requests
+        if (options.Ids !== undefined && options.Ids.split(',').length > idsPerItemRequestLimit) {
+            return this.getItemsMultipleRequests(userId, options);
+        }
+
         if ((typeof userId).toString().toLowerCase() === 'string') {
             url = this.getUrl(`Users/${userId}/Items`, options);
         } else {
@@ -2812,6 +2819,31 @@ class ApiClient {
         }
 
         return this.getJSON(url);
+    }
+
+    getItemsMultipleRequests(userId, options) {
+        let optionsTemplate = { ...options };
+        let ids = options.Ids.split(',');
+        let requests = [];
+
+        let nextI;
+        for (let i = 0; i < ids.length; i = nextI) {
+            let idsSlice;
+            nextI = i + idsPerItemRequestLimit;
+            idsSlice = ids.slice(i, nextI);
+            optionsTemplate.Ids = idsSlice.join(',');
+            requests.push(this.getItems(userId, optionsTemplate));
+        }
+
+        return Promise.all(requests).then((results) => {
+            let merged = { Items: [], TotalRecordCount: 0, StartIndex: 0 };
+            for (let i = 0; i < results.length; i++) {
+                let result = results[i];
+                merged.Items = merged.Items.concat(result.Items);
+                merged.TotalRecordCount += result.TotalRecordCount;
+            }
+            return merged;
+        });
     }
 
     getResumableItems(userId, options) {
