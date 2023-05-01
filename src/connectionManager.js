@@ -732,7 +732,7 @@ export default class ConnectionManager {
 
             result.ApiClient.setSystemInfo(systemInfo);
 
-            result.State = server.AccessToken && options.enableAutoLogin !== false ? 'SignedIn' : 'ServerSignIn';
+            result.State = 'ServerSignIn';
 
             result.Servers.push(server);
 
@@ -748,14 +748,17 @@ export default class ConnectionManager {
                 events.trigger(self, 'connected', [result]);
             };
 
-            if (result.State === 'SignedIn') {
+            if (server.AccessToken && options.enableAutoLogin !== false) {
                 afterConnected(result.ApiClient, options);
 
                 result.ApiClient.getCurrentUser()
                     .then((user) => {
                         return onLocalUserSignIn(server, serverUrl, user);
                     })
-                    .then(resolveActions)
+                    .then(() => {
+                        result.State = 'SignedIn';
+                        resolveActions();
+                    })
                     .catch(resolveActions);
             } else {
                 resolveActions();
