@@ -751,9 +751,12 @@ export default class ConnectionManager {
             if (result.State === 'SignedIn') {
                 afterConnected(result.ApiClient, options);
 
-                result.ApiClient.getCurrentUser().then((user) => {
-                    onLocalUserSignIn(server, serverUrl, user).then(resolveActions, resolveActions);
-                }, resolveActions);
+                result.ApiClient.getCurrentUser()
+                    .then((user) => {
+                        return onLocalUserSignIn(server, serverUrl, user);
+                    })
+                    .then(resolveActions)
+                    .catch(resolveActions);
             } else {
                 resolveActions();
             }
