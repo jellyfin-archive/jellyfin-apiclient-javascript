@@ -4,6 +4,7 @@
  - [cvium](https://github.com/cvium)
  - [Oddstr13](https://github.com/oddstr13)
  - [Andrei Oanca](https://github.com/OancaAndrei)
+ - [rickparrish](https://github.com/rickparrish)
 
 # Emby Contributors
 

@@ -413,6 +413,14 @@ class ApiClientCore extends ApiClient {
         return ApiClient.prototype.updateFavoriteStatus.call(this, userId, itemId, isFavorite);
     }
 
+    updateMyListStatus(userId, itemId, isMyList) {
+        if (isLocalId(itemId)) {
+            return Promise.resolve();
+        }
+
+        return ApiClient.prototype.updateMyListStatus.call(this, userId, itemId, isMyList);
+    }
+
     getScaledImageUrl(itemId, options) {
         if (isLocalId(itemId) || (options && options.itemid && isLocalId(options.itemid))) {
             const serverInfo = this.serverInfo();

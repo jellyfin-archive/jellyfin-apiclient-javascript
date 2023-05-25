@@ -3093,6 +3093,32 @@ class ApiClient {
     }
 
     /**
+     * Updates a user's My List status for an item.
+     * @param {String} userId
+     * @param {String} itemId
+     * @param {Boolean} isMyList
+     */
+    updateMyListStatus(userId, itemId, isMyList) {
+        if (!userId) {
+            throw new Error('null userId');
+        }
+
+        if (!itemId) {
+            throw new Error('null itemId');
+        }
+
+        const url = this.getUrl(`Users/${userId}/MyListItems/${itemId}`);
+
+        const method = isMyList ? 'POST' : 'DELETE';
+
+        return this.ajax({
+            type: method,
+            url,
+            dataType: 'json'
+        });
+    }
+
+    /**
      * Updates a user's personal rating for an item
      * @param {String} userId
      * @param {String} itemId
