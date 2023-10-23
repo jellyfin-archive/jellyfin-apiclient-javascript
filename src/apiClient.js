@@ -7,6 +7,9 @@ const reportRateLimits = {
     volumechange: 3000
 };
 
+/** Maximum bitrate (Int32) */
+const MAX_BITRATE = 2147483647;
+
 function redetectBitrate(instance) {
     stopBitrateDetection(instance);
 
@@ -4053,7 +4056,7 @@ function normalizeReturnBitrate(instance, bitrate) {
         return Promise.reject();
     }
 
-    let result = Math.round(bitrate * 0.7);
+    let result = Math.min(Math.round(bitrate * 0.7), MAX_BITRATE);
 
     // allow configuration of this
     if (instance.getMaxBandwidth) {
