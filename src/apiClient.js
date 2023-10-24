@@ -176,9 +176,7 @@ class ApiClient {
         }
 
         if (values.length) {
-            const auth = `MediaBrowser ${values.join(', ')}`;
-            //headers.Authorization = auth;
-            headers['X-Emby-Authorization'] = auth;
+            headers['Authorization'] = `MediaBrowser ${values.join(', ')}`;
         }
     }
 
