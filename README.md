@@ -24,6 +24,11 @@
 </a>
 </p>
 
+> [!WARNING]
+> This library is **deprecated**.
+> It is recommended to use the [TypeScript SDK](https://github.com/jellyfin/jellyfin-sdk-typescript) instead.
+> No future releases are planned and no new features will be supported.
+
 This library is meant to help clients written in JavaScript interact with Jellyfin's REST API.
 
 ## Compatibility
