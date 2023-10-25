@@ -77,7 +77,7 @@ describe('ApiClient class', () => {
             client.setRequestHeaders(headers);
         }).not.toThrow(Error);
         expect(headers).toStrictEqual({
-            'X-Emby-Authorization':
+            'Authorization':
                 'MediaBrowser Client="Jellyfin Web", Device="Firefox", DeviceId="TW96aWxsYS81LjAgKFgxMTsgTGludXggeDg2XzY0OyBydjo3NC4wKSBHZWNrby8yMDEwMDEwMSBGaXJlZm94Lzc0LjB8MTU4NDkwMTA5OTY3NQ11", Version="10.5.0"'
         });
     });
