@@ -9,16 +9,22 @@ const reportRateLimits = {
 
 /** Maximum bitrate (Int32) */
 const MAX_BITRATE = 2147483647;
+/** Approximate LAN bitrate */
+const LAN_BITRATE = 140000000;
+/** Bitrate test timeout in milliseconds */
+const BITRATETEST_TIMEOUT = 5000;
 
 function redetectBitrate(instance) {
     stopBitrateDetection(instance);
 
     if (instance.accessToken() && instance.enableAutomaticBitrateDetection !== false) {
-        setTimeout(redetectBitrateInternal.bind(instance), 6000);
+        instance.detectTimeout = setTimeout(redetectBitrateInternal.bind(instance), 6000);
     }
 }
 
 function redetectBitrateInternal() {
+    this.detectTimeout = null;
+
     if (this.accessToken()) {
         this.detectBitrate();
     }
@@ -27,6 +33,7 @@ function redetectBitrateInternal() {
 function stopBitrateDetection(instance) {
     if (instance.detectTimeout) {
         clearTimeout(instance.detectTimeout);
+        instance.detectTimeout = null;
     }
 }
 
@@ -746,22 +753,66 @@ class ApiClient {
     }
 
     getDownloadSpeed(byteSize) {
-        const url = this.getUrl('Playback/BitrateTest', {
-            Size: byteSize
-        });
+        return new Promise((resolve, reject) => {
+            const url = this.getUrl('Playback/BitrateTest', {
+                Size: byteSize
+            });
 
-        const now = new Date().getTime();
+            console.log(`Requesting ${url}`);
 
-        return this.ajax({
-            type: 'GET',
-            url,
-            timeout: 5000
-        }).then(() => {
-            const responseTimeSeconds = (new Date().getTime() - now) / 1000;
-            const bytesPerSecond = byteSize / responseTimeSeconds;
-            const bitrate = Math.round(bytesPerSecond * 8);
+            const xhr = new XMLHttpRequest;
 
-            return bitrate;
+            xhr.open('GET', url, true);
+
+            xhr.responseType = 'blob';
+            xhr.timeout = BITRATETEST_TIMEOUT;
+
+            const headers = {
+                'Cache-Control': 'no-cache, no-store'
+            };
+
+            this.setRequestHeaders(headers);
+
+            for (const key in headers) {
+                xhr.setRequestHeader(key, headers[key]);
+            }
+
+            let startTime;
+
+            xhr.onreadystatechange = () => {
+                if (xhr.readyState == XMLHttpRequest.HEADERS_RECEIVED) {
+                    startTime = performance.now();
+                }
+            };
+
+            xhr.onload = () => {
+                if (xhr.status < 400) {
+                    const responseTimeSeconds = (performance.now() - startTime) * 1e-3;
+                    const bytesLoaded = xhr.response.size;
+                    const bytesPerSecond = bytesLoaded / responseTimeSeconds;
+                    const bitrate = Math.round(bytesPerSecond * 8);
+
+                    console.debug(`BitrateTest ${bytesLoaded} bytes loaded (${byteSize} requested) in ${responseTimeSeconds} seconds -> ${bitrate} bps`);
+
+                    resolve(bitrate);
+                } else {
+                    reject(`BitrateTest failed with ${xhr.status} status`);
+                }
+            };
+
+            xhr.onabort = () => {
+                reject('BitrateTest abort');
+            };
+
+            xhr.onerror = () => {
+                reject('BitrateTest error');
+            };
+
+            xhr.ontimeout = () => {
+                reject('BitrateTest timeout');
+            };
+
+            xhr.send(null);
         });
     }
 
@@ -4092,13 +4143,6 @@ function detectBitrateInternal(instance, tests, index, currentBitrate) {
 }
 
 function detectBitrateWithEndpointInfo(instance, endpointInfo) {
-    if (endpointInfo.IsInNetwork) {
-        const result = 140000000;
-        instance.lastDetectedBitrate = result;
-        instance.lastDetectedBitrateTime = new Date().getTime();
-        return result;
-    }
-
     return detectBitrateInternal(
         instance,
         [
@@ -4116,7 +4160,15 @@ function detectBitrateWithEndpointInfo(instance, endpointInfo) {
             }
         ],
         0
-    );
+    ).then((result) => {
+        if (endpointInfo.IsInNetwork) {
+            result = Math.max(result || 0, LAN_BITRATE);
+
+            instance.lastDetectedBitrate = result;
+            instance.lastDetectedBitrateTime = new Date().getTime();
+        }
+        return result;
+    });
 }
 
 function getRemoteImagePrefix(instance, options) {
